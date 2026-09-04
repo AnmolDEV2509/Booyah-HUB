@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booyah HUB | Super Admin Command Center</title>
+    <title>Booyah HUB | Super Admin Portal</title>
     <!-- Google Fonts & FontAwesome -->
     <link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -32,8 +32,8 @@
         .brand span { color: var(--accent-orange); }
 
         .admin-badge {
-            background: rgba(0, 230, 118, 0.15); color: var(--green-glow);
-            border: 1px solid var(--green-glow); padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; text-transform: uppercase;
+            background: rgba(255, 215, 0, 0.15); color: #ffd700;
+            border: 1px solid #ffd700; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; text-transform: uppercase;
         }
 
         .grid-container { display: grid; grid-template-columns: 350px 1fr; gap: 25px; }
@@ -62,10 +62,10 @@
         .btn-danger { background: var(--accent-red); color: #fff; }
         .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid var(--border-color); }
 
-        .sub-admin-item, .announcement-item, .deposit-item {
+        .deposit-item, .sub-admin-item, .announcement-item {
             display: flex; justify-content: space-between; align-items: center;
             background: rgba(0,0,0,0.3); border: 1px solid var(--border-color);
-            padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 12px; flex-wrap: wrap; gap: 8px;
+            padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 12px;
         }
 
         .tourney-item { background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
@@ -77,50 +77,48 @@
         .players-container { margin-top: 12px; background: rgba(0,0,0,0.5); border: 1px dashed var(--accent-orange); border-radius: 6px; padding: 10px; display: none; }
         .player-row { font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .player-row:last-child { border-bottom: none; }
-
-        .result-card { background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
-        .result-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-top: 8px; border: 1px solid var(--border-color); }
-        
-        .super-card { border: 1px solid var(--green-glow); }
     </style>
 </head>
 <body>
 
     <header>
         <div class="brand">BOOYAH <span>HUB</span> SUPER ADMIN</div>
-        <div class="admin-badge" id="roleBadge"><i class="fa-solid fa-crown"></i> Checking Super Admin Access...</div>
+        <div class="admin-badge" id="roleBadge"><i class="fa-solid fa-crown"></i> Super Admin Portal</div>
     </header>
 
     <div class="grid-container">
         
-        <!-- Left Column -->
+        <!-- Left Column: Controls & Configurations -->
         <div>
-            <!-- SUPER ADMIN ONLY: Banking & UPI Configuration -->
-            <div class="card super-card" id="upiControlSection">
-                <div class="card-title"><i class="fa-solid fa-building-columns"></i> Deposit Bank Settings</div>
+            <!-- Payment Settings -->
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-wallet"></i> UPI Payment Setup</div>
                 <div class="form-group">
-                    <label>Primary Deposit UPI ID</label>
-                    <input type="text" id="adminUpiId" placeholder="e.g. booyahhub@paytm">
+                    <label>Admin UPI ID</label>
+                    <input type="text" id="adminUpiId" placeholder="e.g. yourupiid@okaxis">
                 </div>
                 <div class="form-group">
-                    <label>QR Code Image URL</label>
-                    <input type="text" id="adminQrUrl" placeholder="https://image-link.com/qr.png">
+                    <label>QR Code Image URL (Optional)</label>
+                    <input type="text" id="adminQrUrl" placeholder="https://image-link.com/qr.jpg">
                 </div>
-                <button class="btn btn-success" onclick="window.savePaymentSettings()"><i class="fa-solid fa-floppy-disk"></i> Save Banking Details</button>
+                <button class="btn btn-primary" onclick="window.savePaymentSettings()"><i class="fa-solid fa-floppy-disk"></i> Save UPI Details</button>
             </div>
 
-            <!-- SUPER ADMIN ONLY: Manage Sub-Admins -->
-            <div class="card super-card" id="subAdminSection">
-                <div class="card-title"><i class="fa-solid fa-users-gear"></i> Manage Sub-Admins</div>
+            <!-- Manage Sub-Admins -->
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-user-shield"></i> Sub-Admins Control</div>
                 <div class="form-group">
-                    <label>Sub-Admin Email ID</label>
+                    <label>Sub-Admin Email</label>
                     <input type="email" id="subAdminEmail" placeholder="subadmin@gmail.com">
                 </div>
-                <button class="btn btn-primary" onclick="window.addSubAdmin()"><i class="fa-solid fa-user-plus"></i> Add Sub-Admin</button>
-                <div id="subAdminList" style="margin-top: 15px;">Fetching sub-admins...</div>
+                <button class="btn btn-primary" onclick="window.addSubAdmin()"><i class="fa-solid fa-user-plus"></i> Grant Sub-Admin Access</button>
+                <div style="margin-top: 15px;">
+                    <label style="display:block; font-size:11px; color:var(--text-muted); margin-bottom:8px; font-weight:600;">ACTIVE SUB-ADMINS</label>
+                    <div id="subAdminList">Loading sub-admins...</div>
+                </div>
             </div>
 
-            <!-- Add Announcement -->
+            <!-- Post Announcement -->
             <div class="card">
                 <div class="card-title"><i class="fa-solid fa-bullhorn"></i> Post Announcement</div>
                 <div class="form-group">
@@ -130,7 +128,7 @@
                 <button class="btn btn-primary" onclick="window.postAnnouncement()"><i class="fa-solid fa-paper-plane"></i> Add Announcement</button>
             </div>
 
-            <!-- Host New Tournament -->
+            <!-- Host Tournament Form -->
             <div class="card">
                 <div class="card-title"><i class="fa-solid fa-plus-circle"></i> Host New Tournament</div>
                 
@@ -180,12 +178,12 @@
             </div>
         </div>
 
-        <!-- Right Column -->
+        <!-- Right Column: Live Data Feeds & Management -->
         <div>
-            <!-- PENDING WALLET DEPOSITS (UTR VERIFICATION) -->
-            <div class="card super-card">
-                <div class="card-title"><i class="fa-solid fa-file-invoice-dollar"></i> Pending Wallet Deposits (UTR)</div>
-                <div id="adminDepositRequests">Loading deposit requests...</div>
+            <!-- Pending UPI Deposit Requests -->
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-money-bill-transfer"></i> Pending UPI Deposit Requests</div>
+                <div id="adminDepositRequests">Checking pending requests...</div>
             </div>
 
             <!-- Active Announcements -->
@@ -194,13 +192,7 @@
                 <div id="announcementsList">Fetching active notices...</div>
             </div>
 
-            <!-- Match Proofs -->
-            <div class="card">
-                <div class="card-title"><i class="fa-solid fa-file-invoice"></i> Submitted Match Proofs</div>
-                <div id="resultsList">Loading submissions...</div>
-            </div>
-
-            <!-- Manage Active Tournaments -->
+            <!-- Active Tournaments Management -->
             <div class="card">
                 <div class="card-title"><i class="fa-solid fa-list-check"></i> Manage Tournaments & Room Details</div>
                 <div id="adminTournamentsList">Syncing with Firestore...</div>
@@ -209,7 +201,7 @@
 
     </div>
 
-    <!-- SUPER ADMIN SCRIPT -->
-    <script type="module" src="./admin_4.js"></script>
+    <!-- SUPER ADMIN SCRIPT LINK -->
+    <script type="module" src="./admin.js"></script>
 </body>
 </html>
