@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { 
     getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, 
-    setDoc, getDoc, serverTimestamp, query, where, getDocs 
+    setDoc, getDoc, serverTimestamp, query, where, getDocs, increment 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -31,9 +31,10 @@ onAuthStateChanged(auth, async (user) => {
             document.getElementById('roleBadge').innerHTML = `<i class="fa-solid fa-crown"></i> Super Admin Verified`;
             loadPaymentSettings();
             listenSubAdmins();
+            listenDepositRequests();
         } else {
             alert("Access Denied! Yeh portal sirf Super Admin ke liye hai.");
-            window.location.href = "subadmin.html"; // Non-super admins ko Sub-Admin portal bhej do
+            window.location.href = "subadmin.html";
         }
     } else {
         alert("Pehle login karein!");
@@ -73,6 +74,79 @@ window.savePaymentSettings = async () => {
         alert("Banking UPI Details Updated Successfully!");
     } catch (e) {
         alert("Error updating UPI settings: " + e.message);
+    }
+};
+
+/* ==========================================================================
+   WALLET DEPOSIT APPROVALS (UTR MANAGEMENT)
+   ========================================================================== */
+function listenDepositRequests() {
+    onSnapshot(collection(db, "deposit_requests"), (snapshot) => {
+        const listEl = document.getElementById('adminDepositRequests');
+        if (!listEl) return;
+        
+        let pendingHtml = '';
+        let hasPending = false;
+
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.status === 'PENDING') {
+                hasPending = true;
+                pendingHtml += `
+                    <div class="deposit-item">
+                        <div>
+                            <strong>User:</strong> ${data.userEmail || data.userId}<br>
+                            <strong>Amount:</strong> <span style="color:var(--green-glow);">₹${data.amount}</span><br>
+                            <strong>UTR Ref:</strong> <span style="color:var(--accent-orange); font-family:monospace;">${data.utrNumber}</span>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn btn-success" style="width:auto; padding:6px 10px;" onclick="window.approveDeposit('${docSnap.id}', '${data.userId}', ${data.amount})">Approve</button>
+                            <button class="btn btn-danger" style="width:auto; padding:6px 10px;" onclick="window.rejectDeposit('${docSnap.id}')">Reject</button>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        if (!hasPending) {
+            listEl.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:10px;">No pending deposit requests. Sab clear hai!</div>`;
+        } else {
+            listEl.innerHTML = pendingHtml;
+        }
+    });
+}
+
+window.approveDeposit = async (requestId, userId, amount) => {
+    if (!confirm(`Confirm approve ₹${amount} and add to player wallet?`)) return;
+
+    try {
+        // Player ke wallet mein balance atomically increment karo
+        const userRef = doc(db, "users", userId);
+        await setDoc(userRef, {
+            walletBalance: increment(amount)
+        }, { merge: true });
+
+        // Request status APPROVED mark karo
+        await updateDoc(doc(db, "deposit_requests", requestId), {
+            status: "APPROVED"
+        });
+
+        alert("✅ Deposit Approved & User Wallet Updated Successfully!");
+    } catch (e) {
+        alert("Error approving deposit: " + e.message);
+    }
+};
+
+window.rejectDeposit = async (requestId) => {
+    if (!confirm("Kya aap is UTR request ko reject karna chahte hain?")) return;
+
+    try {
+        await updateDoc(doc(db, "deposit_requests", requestId), {
+            status: "REJECTED"
+        });
+        alert("❌ Deposit Request Rejected!");
+    } catch (e) {
+        alert("Error rejecting request!");
     }
 };
 
