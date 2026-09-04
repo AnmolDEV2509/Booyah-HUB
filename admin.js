@@ -20,13 +20,19 @@ const auth = getAuth(app);
 
 const SUPER_ADMIN_EMAIL = "admin2509@gmail.com";
 
+// Auth State Change - Saare listeners ab iske andar safe hain!
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
             document.getElementById('roleBadge').innerHTML = `<i class="fa-solid fa-crown"></i> Super Admin Verified`;
+            
+            // Ab sabhi data loaders aur real-time listeners call honge
             loadPaymentSettings();
             listenSubAdmins();
             listenDepositRequests();
+            initAnnouncementsListener();
+            initTournamentsListener();
+
         } else {
             alert("Access Denied! Yeh portal sirf Super Admin ke liye hai.");
             window.location.href = "subadmin.html";
@@ -204,27 +210,29 @@ window.postAnnouncement = async () => {
     }
 };
 
-onSnapshot(collection(db, "announcements"), (snapshot) => {
-    const container = document.getElementById('announcementsList');
-    if(!container) return;
-    container.innerHTML = "";
+function initAnnouncementsListener() {
+    onSnapshot(collection(db, "announcements"), (snapshot) => {
+        const container = document.getElementById('announcementsList');
+        if(!container) return;
+        container.innerHTML = "";
 
-    if(snapshot.empty) {
-        container.innerHTML = `<div style="color:var(--text-muted); font-size:12px;">No active announcements.</div>`;
-        return;
-    }
+        if(snapshot.empty) {
+            container.innerHTML = `<div style="color:var(--text-muted); font-size:12px;">No active announcements.</div>`;
+            return;
+        }
 
-    snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        const id = docSnap.id;
-        container.innerHTML += `
-            <div class="announcement-item">
-                <span>${data.text}</span>
-                <button class="btn btn-danger" style="width:auto; padding:4px 8px; font-size:10px;" onclick="window.deleteAnnouncement('${id}')"><i class="fa-solid fa-trash"></i> Delete</button>
-            </div>
-        `;
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const id = docSnap.id;
+            container.innerHTML += `
+                <div class="announcement-item">
+                    <span>${data.text}</span>
+                    <button class="btn btn-danger" style="width:auto; padding:4px 8px; font-size:10px;" onclick="window.deleteAnnouncement('${id}')"><i class="fa-solid fa-trash"></i> Delete</button>
+                </div>
+            `;
+        });
     });
-});
+}
 
 window.deleteAnnouncement = async (id) => {
     if(confirm("Announcement delete karna hai?")) {
@@ -271,64 +279,66 @@ window.createMatch = async () => {
     }
 };
 
-onSnapshot(collection(db, "tournaments"), (snapshot) => {
-    const container = document.getElementById('adminTournamentsList');
-    if(!container) return;
-    container.innerHTML = "";
+function initTournamentsListener() {
+    onSnapshot(collection(db, "tournaments"), (snapshot) => {
+        const container = document.getElementById('adminTournamentsList');
+        if(!container) return;
+        container.innerHTML = "";
 
-    if(snapshot.empty) {
-        container.innerHTML = `<div style="color:var(--text-muted); text-align:center;">No tournaments found.</div>`;
-        return;
-    }
+        if(snapshot.empty) {
+            container.innerHTML = `<div style="color:var(--text-muted); text-align:center;">No tournaments found.</div>`;
+            return;
+        }
 
-    snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        const id = docSnap.id;
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const id = docSnap.id;
 
-        container.innerHTML += `
-            <div class="tourney-item">
-                <div class="tourney-header">
-                    <div>
-                        <strong style="font-size:15px;">${data.name}</strong>
-                        <span style="font-size:11px; color:var(--accent-orange); margin-left:8px;">[${data.mode}]</span>
+            container.innerHTML += `
+                <div class="tourney-item">
+                    <div class="tourney-header">
+                        <div>
+                            <strong style="font-size:15px;">${data.name}</strong>
+                            <span style="font-size:11px; color:var(--accent-orange); margin-left:8px;">[${data.mode}]</span>
+                        </div>
+                        <select id="status-${id}" onchange="window.updateStatus('${id}')" style="background:#000; color:#fff; border:1px solid var(--border-color); padding:4px 8px; border-radius:4px; font-size:11px;">
+                            <option value="UPCOMING" ${data.status === 'UPCOMING' ? 'selected' : ''}>UPCOMING</option>
+                            <option value="LIVE" ${data.status === 'LIVE' ? 'selected' : ''}>LIVE</option>
+                            <option value="COMPLETED" ${data.status === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
+                        </select>
                     </div>
-                    <select id="status-${id}" onchange="window.updateStatus('${id}')" style="background:#000; color:#fff; border:1px solid var(--border-color); padding:4px 8px; border-radius:4px; font-size:11px;">
-                        <option value="UPCOMING" ${data.status === 'UPCOMING' ? 'selected' : ''}>UPCOMING</option>
-                        <option value="LIVE" ${data.status === 'LIVE' ? 'selected' : ''}>LIVE</option>
-                        <option value="COMPLETED" ${data.status === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
-                    </select>
+
+                    <div class="edit-grid">
+                        <div class="form-group">
+                            <label>Room ID</label>
+                            <input type="text" id="room-${id}" value="${data.roomId || ''}" placeholder="Enter Room ID">
+                        </div>
+                        <div class="form-group">
+                            <label>Room Password</label>
+                            <input type="text" id="pass-${id}" value="${data.roomPass || ''}" placeholder="Enter Pass">
+                        </div>
+                        <div class="form-group">
+                            <label>Prize Pool (₹)</label>
+                            <input type="number" id="prize-${id}" value="${data.prize || 0}">
+                        </div>
+                        <div class="form-group">
+                            <label>Entry Fee (₹)</label>
+                            <input type="number" id="entry-${id}" value="${data.entry || 0}">
+                        </div>
+                    </div>
+
+                    <div class="action-btns">
+                        <button class="btn btn-primary" onclick="window.saveMatchDetails('${id}')"><i class="fa-solid fa-floppy-disk"></i> Save Edits</button>
+                        <button class="btn btn-secondary" onclick="window.togglePlayers('${id}')"><i class="fa-solid fa-users"></i> View Players</button>
+                        <button class="btn btn-danger" onclick="window.deleteMatch('${id}')"><i class="fa-solid fa-trash"></i> Delete</button>
+                    </div>
+
+                    <div id="players-box-${id}" class="players-container">Loading joined players...</div>
                 </div>
-
-                <div class="edit-grid">
-                    <div class="form-group">
-                        <label>Room ID</label>
-                        <input type="text" id="room-${id}" value="${data.roomId || ''}" placeholder="Enter Room ID">
-                    </div>
-                    <div class="form-group">
-                        <label>Room Password</label>
-                        <input type="text" id="pass-${id}" value="${data.roomPass || ''}" placeholder="Enter Pass">
-                    </div>
-                    <div class="form-group">
-                        <label>Prize Pool (₹)</label>
-                        <input type="number" id="prize-${id}" value="${data.prize || 0}">
-                    </div>
-                    <div class="form-group">
-                        <label>Entry Fee (₹)</label>
-                        <input type="number" id="entry-${id}" value="${data.entry || 0}">
-                    </div>
-                </div>
-
-                <div class="action-btns">
-                    <button class="btn btn-primary" onclick="window.saveMatchDetails('${id}')"><i class="fa-solid fa-floppy-disk"></i> Save Edits</button>
-                    <button class="btn btn-secondary" onclick="window.togglePlayers('${id}')"><i class="fa-solid fa-users"></i> View Players</button>
-                    <button class="btn btn-danger" onclick="window.deleteMatch('${id}')"><i class="fa-solid fa-trash"></i> Delete</button>
-                </div>
-
-                <div id="players-box-${id}" class="players-container">Loading joined players...</div>
-            </div>
-        `;
+            `;
+        });
     });
-});
+}
 
 window.togglePlayers = async (tourneyId) => {
     const box = document.getElementById(`players-box-${tourneyId}`);
