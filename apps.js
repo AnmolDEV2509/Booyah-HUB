@@ -52,17 +52,27 @@ async function loadUserData(userId) {
     }
 }
 
+// Updated Double Wallet Listener
 function loadUserWallet(userId) {
     onSnapshot(doc(db, "users", userId), (docSnap) => {
-        const walletEl = document.getElementById('walletBalanceDisplay');
-        if (docSnap.exists() && walletEl) {
-            const balance = docSnap.data().walletBalance || 0;
-            walletEl.innerText = `₹${balance}`;
+        const depositEl = document.getElementById('depositBalanceDisplay');
+        const winningEl = document.getElementById('winningBalanceDisplay');
+        const totalWalletEl = document.getElementById('walletBalanceDisplay');
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            const deposit = data.depositBalance || 0;
+            const winning = data.winningBalance || 0;
+            const total = deposit + winning;
+
+            if (depositEl) depositEl.innerText = `₹${deposit.toFixed(2)}`;
+            if (winningEl) winningEl.innerText = `₹${winning.toFixed(2)}`;
+            if (totalWalletEl) totalWalletEl.innerText = `₹${total.toFixed(2)}`;
         }
     });
 }
 
-// Display Tournaments on Home
+// Display Tournaments
 document.addEventListener("DOMContentLoaded", () => {
     const tourneyContainer = document.getElementById('tournamentsList');
     if (!tourneyContainer) return;
@@ -104,7 +114,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// Modal & Registration Logic
 let activeTourneyId = null;
 let activeEntryFee = 0;
 
@@ -121,7 +130,6 @@ window.openRegisterModal = (tourneyId, tourneyName, entryFee, mode) => {
 
     document.getElementById('modalTourneyTitle').innerText = tourneyName;
     
-    // Dynamic fields based on mode (Solo/Duo/Squad)
     const container = document.getElementById('dynamicPlayersInputs');
     container.innerHTML = '';
     
@@ -147,13 +155,13 @@ window.closeRegisterModal = () => {
     if (modal) modal.style.display = 'none';
 };
 
+// Double Wallet Transaction Deduction Logic
 window.submitRegistration = async () => {
     if (!auth.currentUser || !activeTourneyId) return;
 
     const userRef = doc(db, "users", auth.currentUser.uid);
     const tourneyRef = doc(db, "tournaments", activeTourneyId);
 
-    // Collect player inputs
     const inputs = document.querySelectorAll('#dynamicPlayersInputs input');
     let players = [];
     let isValid = true;
@@ -182,8 +190,12 @@ window.submitRegistration = async () => {
                 throw new Error("Match ya User data nahi mila!");
             }
 
-            const currentBalance = userSnap.data().walletBalance || 0;
-            if (currentBalance < activeEntryFee) {
+            const userData = userSnap.data();
+            let deposit = userData.depositBalance || 0;
+            let winning = userData.winningBalance || 0;
+            const totalBalance = deposit + winning;
+
+            if (totalBalance < activeEntryFee) {
                 throw new Error("Wallet mein sufficient balance nahi hai! Pehle deposit karein.");
             }
 
@@ -193,11 +205,26 @@ window.submitRegistration = async () => {
                 throw new Error("Oops! Sare slots full ho chuke hain.");
             }
 
-            // Deduct entry fee and update slots
-            transaction.update(userRef, { walletBalance: currentBalance - activeEntryFee });
+            // Entry Fee Deduction Strategy: Pehle Deposit Wallet se, fir Winnings Wallet se
+            let feeRemaining = activeEntryFee;
+
+            if (deposit >= feeRemaining) {
+                deposit -= feeRemaining;
+                feeRemaining = 0;
+            } else {
+                feeRemaining -= deposit;
+                deposit = 0;
+                winning -= feeRemaining;
+            }
+
+            // Wallet and Slots updates
+            transaction.update(userRef, { 
+                depositBalance: deposit,
+                winningBalance: winning 
+            });
             transaction.update(tourneyRef, { joinedSlots: joined + 1 });
 
-            // Create registration doc
+            // Create registration record
             const regRef = doc(collection(db, "registrations"));
             transaction.set(regRef, {
                 tournamentId: activeTourneyId,
