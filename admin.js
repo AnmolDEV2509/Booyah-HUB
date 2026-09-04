@@ -5,7 +5,6 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// Firebase Configuration
 const firebaseConfig = {
     apiKey: "AIzaSyBd53nUisAs6ZzxKpG0Z-CMeCpfMPqvFTc",
     authDomain: "booyah-hub-e041d.firebaseapp.com",
@@ -19,12 +18,8 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// SUPER ADMIN CONFIGURATION
-const SUPER_ADMIN_EMAIL = "admin2509@gmail.com"; // <-- Apni main Super Admin Login Email idhar dalein!
+const SUPER_ADMIN_EMAIL = "admin2509@gmail.com";
 
-/* ==========================================================================
-   STRICT SUPER ADMIN AUTH VERIFICATION
-   ========================================================================== */
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
@@ -42,9 +37,6 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-/* ==========================================================================
-   BANKING & UPI SETTINGS (SUPER ADMIN ONLY)
-   ========================================================================== */
 async function loadPaymentSettings() {
     try {
         const docRef = doc(db, "system_settings", "payment_info");
@@ -77,9 +69,6 @@ window.savePaymentSettings = async () => {
     }
 };
 
-/* ==========================================================================
-   WALLET DEPOSIT APPROVALS (UTR MANAGEMENT)
-   ========================================================================== */
 function listenDepositRequests() {
     onSnapshot(collection(db, "deposit_requests"), (snapshot) => {
         const listEl = document.getElementById('adminDepositRequests');
@@ -120,13 +109,11 @@ window.approveDeposit = async (requestId, userId, amount) => {
     if (!confirm(`Confirm approve ₹${amount} and add to player wallet?`)) return;
 
     try {
-        // Player ke wallet mein balance atomically increment karo
         const userRef = doc(db, "users", userId);
         await setDoc(userRef, {
             walletBalance: increment(amount)
         }, { merge: true });
 
-        // Request status APPROVED mark karo
         await updateDoc(doc(db, "deposit_requests", requestId), {
             status: "APPROVED"
         });
@@ -150,9 +137,6 @@ window.rejectDeposit = async (requestId) => {
     }
 };
 
-/* ==========================================================================
-   SUB-ADMIN MANAGEMENT (SUPER ADMIN ONLY)
-   ========================================================================== */
 window.addSubAdmin = async () => {
     const email = document.getElementById('subAdminEmail').value.trim().toLowerCase();
     if (!email) return alert("Sub-Admin email type karein!");
@@ -204,9 +188,6 @@ window.removeSubAdmin = async (emailId) => {
     }
 };
 
-/* ==========================================================================
-   ANNOUNCEMENTS SECTION
-   ========================================================================== */
 window.postAnnouncement = async () => {
     const text = document.getElementById('announcementText').value.trim();
     if(!text) return alert("Announcement text enter karo!");
@@ -255,9 +236,6 @@ window.deleteAnnouncement = async (id) => {
     }
 };
 
-/* ==========================================================================
-   TOURNAMENTS & MATCH CONTROL SECTION
-   ========================================================================== */
 window.createMatch = async () => {
     const title = document.getElementById('newTitle').value.trim();
     const mode = document.getElementById('newMode').value;
@@ -422,50 +400,6 @@ window.deleteMatch = async (id) => {
             alert("Tournament Deleted!");
         } catch(e) {
             alert("Error deleting match!");
-        }
-    }
-};
-
-/* ==========================================================================
-   RESULTS & PROOFS REVIEW SECTION
-   ========================================================================== */
-onSnapshot(collection(db, "results"), (snapshot) => {
-    const container = document.getElementById('resultsList');
-    if(!container) return;
-    container.innerHTML = "";
-
-    if(snapshot.empty) {
-        container.innerHTML = `<div style="color:var(--text-muted); font-size:12px;">No proof screenshots submitted yet.</div>`;
-        return;
-    }
-
-    snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        const id = docSnap.id;
-
-        container.innerHTML += `
-            <div class="result-card">
-                <div style="font-size:12px; font-weight:600;">User: ${data.userEmail}</div>
-                <div style="font-size:10px; color:var(--text-muted);">Match ID: ${data.tournamentId}</div>
-                <a href="${data.screenshotUrl}" target="_blank">
-                    <img src="${data.screenshotUrl}" class="result-img" alt="Booyah Proof">
-                </a>
-                <div style="display:flex; gap:8px; margin-top:8px;">
-                    <button class="btn btn-success" style="padding:6px;" onclick="window.deleteResultProof('${id}', 'Approved')"><i class="fa-solid fa-check"></i> Approve / Paid</button>
-                    <button class="btn btn-danger" style="padding:6px;" onclick="window.deleteResultProof('${id}', 'Rejected')"><i class="fa-solid fa-xmark"></i> Reject</button>
-                </div>
-            </div>
-        `;
-    });
-});
-
-window.deleteResultProof = async (id, status) => {
-    if(confirm(`Mark this proof as ${status}?`)) {
-        try {
-            await deleteDoc(doc(db, "results", id));
-            alert(`Proof ${status}!`);
-        } catch(e) {
-            alert("Error processing proof!");
         }
     }
 };
