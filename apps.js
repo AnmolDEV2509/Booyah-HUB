@@ -1,283 +1,226 @@
-// App.js
-import { db, storage, auth, googleProvider } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { 
-    collection, 
-    doc, 
-    onSnapshot, 
-    updateDoc, 
-    addDoc, 
-    increment, 
-    serverTimestamp, 
-    query, 
-    where, 
-    getDocs 
-} from "firebase/firestore";
+    getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, 
+    setDoc, getDoc, serverTimestamp, query, where, getDocs, increment, runTransaction 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { 
-    ref, 
-    uploadBytes, 
-    getDownloadURL 
-} from "firebase/storage";
-import { 
-    signInWithPopup, 
-    createUserWithEmailAndPassword, 
-    signInWithEmailAndPassword, 
-    signOut, 
-    onAuthStateChanged 
-} from "firebase/auth";
-import { 
-    getMessaging, 
-    getToken, 
-    onMessage 
-} from "firebase/messaging";
+    getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
+    signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// VAPID Public Key for Web Push Notifications
-const VAPID_KEY = "BIDNlSGxv83fuswRfeB2o70KnMTPNUoZrD6pIIY_rs-fIokINzIEmFJxAWp2F0zborubs-TSMzTdnhyTYQMHvoE";
+const firebaseConfig = {
+    apiKey: "AIzaSyBd53nUisAs6ZzxKpG0Z-CMeCpfMPqvFTc",
+    authDomain: "booyah-hub-e041d.firebaseapp.com",
+    projectId: "booyah-hub-e041d",
+    storageBucket: "booyah-hub-e041d.firebasestorage.app",
+    messagingSenderId: "1007690608229",
+    appId: "1:1007690608229:web:7ce6b6d19a6200430ce08c"
+};
 
-// Initialize Messaging
-const messaging = getMessaging();
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-// State Global Variables
-export let currentUser = null;
-export let tournamentsData = [];
-export let userJoinedMatches = new Set();
-export let currentFcmToken = null;
+// Auth State Listener
+onAuthStateChanged(auth, async (user) => {
+    const authSection = document.getElementById('authSection');
+    const userProfileSection = document.getElementById('userProfileSection');
 
-// ==========================================
-// 🔔 PUSH NOTIFICATION FUNCTIONS
-// ==========================================
-
-/**
- * Request Notification Permission and Fetch Token
- */
-export async function requestNotificationPermission(userId = null) {
-    try {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-            const token = await getToken(messaging, { vapidKey: VAPID_KEY });
-            if (token) {
-                currentFcmToken = token;
-                const targetUid = userId || currentUser?.uid;
-                
-                // Firestore me user Profile Update/Save karo
-                if (targetUid) {
-                    await updateDoc(doc(db, "users", targetUid), {
-                        fcmToken: token,
-                        updatedAt: serverTimestamp()
-                    }).catch(async () => {
-                        // Agar document exists na kare to create/merge handling
-                        await addDoc(collection(db, "users"), {
-                            uid: targetUid,
-                            fcmToken: token,
-                            updatedAt: serverTimestamp()
-                        });
-                    });
-                }
-                return { success: true, token };
-            }
-        }
-        return { success: false, message: "Permission denied or token unavailable" };
-    } catch (error) {
-        console.error("FCM Token Error:", error);
-        return { success: false, error: error.message };
+    if (user) {
+        if (authSection) authSection.style.display = 'none';
+        if (userProfileSection) userProfileSection.style.display = 'flex';
+        
+        loadUserData(user.uid);
+        loadUserWallet(user.uid);
+    } else {
+        if (authSection) authSection.style.display = 'flex';
+        if (userProfileSection) userProfileSection.style.display = 'none';
     }
-}
-
-/**
- * Foreground Push Message Listener
- */
-onMessage(messaging, (payload) => {
-    console.log("Foreground Push Message:", payload);
-    const title = payload.notification?.title || "Booyah HUB Alert";
-    const body = payload.notification?.body || "New tournament update!";
-    
-    // Web In-App Alert/Toast Trigger
-    alert(`📢 ${title}\n${body}`);
 });
 
-// ==========================================
-// 🔑 AUTHENTICATION FUNCTIONS
-// ==========================================
-
-/**
- * Google Sign-In Function
- */
-export async function loginWithGoogle() {
+async function loadUserData(userId) {
     try {
-        const result = await signInWithPopup(auth, googleProvider);
-        await requestNotificationPermission(result.user.uid);
-        return { success: true, user: result.user };
-    } catch (error) {
-        console.error("Google Auth Error:", error.message);
-        return { success: false, error: error.message };
-    }
-}
-
-/**
- * Register user with Email & Password
- */
-export async function registerWithEmail(email, password) {
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await requestNotificationPermission(userCredential.user.uid);
-        return { success: true, user: userCredential.user };
-    } catch (error) {
-        console.error("Signup Error:", error.message);
-        return { success: false, error: error.message };
-    }
-}
-
-/**
- * Login user with Email & Password
- */
-export async function loginWithEmail(email, password) {
-    try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        await requestNotificationPermission(userCredential.user.uid);
-        return { success: true, user: userCredential.user };
-    } catch (error) {
-        console.error("Login Error:", error.message);
-        return { success: false, error: error.message };
-    }
-}
-
-/**
- * Logout Current User
- */
-export async function logoutUser() {
-    try {
-        await signOut(auth);
-        userJoinedMatches.clear();
-        currentFcmToken = null;
-        return { success: true };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-}
-
-/**
- * Listen to Authentication state changes (Auto-session)
- */
-export function listenToAuthState(onUserChanged) {
-    onAuthStateChanged(auth, async (user) => {
-        currentUser = user;
-        if (user) {
-            await fetchUserRegistrations(user.uid);
-            await requestNotificationPermission(user.uid);
-        } else {
-            userJoinedMatches.clear();
-            currentFcmToken = null;
+        const userRef = doc(db, "users", userId);
+        const snap = await getDoc(userRef);
+        const emailEl = document.getElementById('userEmailDisplay');
+        
+        if (snap.exists() && emailEl) {
+            emailEl.innerText = snap.data().email || auth.currentUser.email;
         }
-        if (onUserChanged && typeof onUserChanged === 'function') {
-            onUserChanged(user);
+    } catch (e) {
+        console.error("Error loading user data:", e);
+    }
+}
+
+function loadUserWallet(userId) {
+    onSnapshot(doc(db, "users", userId), (docSnap) => {
+        const walletEl = document.getElementById('walletBalanceDisplay');
+        if (docSnap.exists() && walletEl) {
+            const balance = docSnap.data().walletBalance || 0;
+            walletEl.innerText = `₹${balance}`;
         }
     });
 }
 
-// ==========================================
-// 🏆 TOURNAMENTS & REGISTRATION LOGIC
-// ==========================================
+// Display Tournaments on Home
+document.addEventListener("DOMContentLoaded", () => {
+    const tourneyContainer = document.getElementById('tournamentsList');
+    if (!tourneyContainer) return;
 
-/**
- * Fetch registrations for currently logged-in user
- */
-export async function fetchUserRegistrations(userId) {
-    try {
-        const uid = userId || currentUser?.uid;
-        if (!uid) return;
+    onSnapshot(collection(db, "tournaments"), (snapshot) => {
+        tourneyContainer.innerHTML = "";
 
-        const q = query(collection(db, "registrations"), where("userId", "==", uid));
-        const querySnapshot = await getDocs(q);
-        userJoinedMatches.clear();
-        querySnapshot.forEach((docSnap) => {
-            userJoinedMatches.add(docSnap.data().tournamentId);
-        });
-    } catch (error) {
-        console.error("Error fetching registrations:", error);
-    }
-}
+        if (snapshot.empty) {
+            tourneyContainer.innerHTML = `<div style="color:var(--text-muted); text-align:center; grid-column: 1/-1;">No live or upcoming tournaments right now. Stay tuned!</div>`;
+            return;
+        }
 
-/**
- * Real-time listener for Active Tournaments List
- */
-export function listenToTournaments(onDataUpdate) {
-    return onSnapshot(collection(db, "tournaments"), (snapshot) => {
-        tournamentsData = [];
-        snapshot.forEach(docSnap => {
+        snapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            tournamentsData.push({ 
-                id: docSnap.id, 
-                ...data,
-                isJoined: userJoinedMatches.has(docSnap.id)
+            const id = docSnap.id;
+
+            tourneyContainer.innerHTML += `
+                <div class="tourney-card">
+                    <div class="tourney-banner" style="background-image: url('${data.banner}')">
+                        <span class="badge ${data.status.toLowerCase()}">${data.status}</span>
+                    </div>
+                    <div class="tourney-body">
+                        <h3>${data.name}</h3>
+                        <p>Mode: <strong>${data.mode}</strong></p>
+                        <div class="tourney-meta">
+                            <span>Prize: <strong style="color:var(--green-glow);">₹${data.prize}</strong></span>
+                            <span>Entry: <strong style="color:var(--accent-orange);">₹${data.entry}</strong></span>
+                        </div>
+                        <div class="slots-info">
+                            <span>Slots Left: ${data.totalSlots - (data.joinedSlots || 0)}/${data.totalSlots}</span>
+                        </div>
+                        <button class="btn btn-primary" onclick="window.openRegisterModal('${id}', '${data.name}', ${data.entry}, '${data.mode}')">
+                            Join Match
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    });
+});
+
+// Modal & Registration Logic
+let activeTourneyId = null;
+let activeEntryFee = 0;
+
+window.openRegisterModal = (tourneyId, tourneyName, entryFee, mode) => {
+    if (!auth.currentUser) {
+        alert("Pehle login karein match join karne ke liye!");
+        return;
+    }
+    activeTourneyId = tourneyId;
+    activeEntryFee = entryFee;
+
+    const modal = document.getElementById('registerModal');
+    if (modal) modal.style.display = 'flex';
+
+    document.getElementById('modalTourneyTitle').innerText = tourneyName;
+    
+    // Dynamic fields based on mode (Solo/Duo/Squad)
+    const container = document.getElementById('dynamicPlayersInputs');
+    container.innerHTML = '';
+    
+    let count = 1;
+    if (mode === 'DUO') count = 2;
+    if (mode === 'SQUAD') count = 4;
+
+    for (let i = 1; i <= count; i++) {
+        container.innerHTML += `
+            <div class="form-group" style="margin-bottom:10px;">
+                <label>Player ${i} IGN & UID</label>
+                <div style="display:flex; gap:6px;">
+                    <input type="text" id="p-ign-${i}" placeholder="In-Game Name" required style="flex:1;">
+                    <input type="text" id="p-uid-${i}" placeholder="Free Fire UID" required style="flex:1;">
+                </div>
+            </div>
+        `;
+    }
+};
+
+window.closeRegisterModal = () => {
+    const modal = document.getElementById('registerModal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.submitRegistration = async () => {
+    if (!auth.currentUser || !activeTourneyId) return;
+
+    const userRef = doc(db, "users", auth.currentUser.uid);
+    const tourneyRef = doc(db, "tournaments", activeTourneyId);
+
+    // Collect player inputs
+    const inputs = document.querySelectorAll('#dynamicPlayersInputs input');
+    let players = [];
+    let isValid = true;
+
+    for (let i = 0; i < inputs.length; i += 2) {
+        const ign = inputs[i].value.trim();
+        const uid = inputs[i+1].value.trim();
+        if (!ign || !uid) {
+            isValid = false;
+            break;
+        }
+        players.push({ ign, uid });
+    }
+
+    if (!isValid) {
+        alert("Sabhi players ke IGN aur UID fill karna zaroori hai!");
+        return;
+    }
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const userSnap = await transaction.get(userRef);
+            const tourneySnap = await transaction.get(tourneyRef);
+
+            if (!userSnap.exists() || !tourneySnap.exists()) {
+                throw new Error("Match ya User data nahi mila!");
+            }
+
+            const currentBalance = userSnap.data().walletBalance || 0;
+            if (currentBalance < activeEntryFee) {
+                throw new Error("Wallet mein sufficient balance nahi hai! Pehle deposit karein.");
+            }
+
+            const tourneyData = tourneySnap.data();
+            const joined = tourneyData.joinedSlots || 0;
+            if (joined >= tourneyData.totalSlots) {
+                throw new Error("Oops! Sare slots full ho chuke hain.");
+            }
+
+            // Deduct entry fee and update slots
+            transaction.update(userRef, { walletBalance: currentBalance - activeEntryFee });
+            transaction.update(tourneyRef, { joinedSlots: joined + 1 });
+
+            // Create registration doc
+            const regRef = doc(collection(db, "registrations"));
+            transaction.set(regRef, {
+                tournamentId: activeTourneyId,
+                userId: auth.currentUser.uid,
+                userEmail: auth.currentUser.email,
+                players: players,
+                createdAt: serverTimestamp()
             });
         });
-        if (onDataUpdate && typeof onDataUpdate === 'function') {
-            onDataUpdate(tournamentsData);
-        }
-    }, (error) => {
-        console.error("Firestore Tournament Sync Error:", error);
-    });
-}
 
-/**
- * Join Match Logic
- */
-export async function joinTournament(tournamentId, playerNames = []) {
-    if (!currentUser) {
-        return { success: false, message: "User not logged in" };
+        alert("🎉 Successfully Registered for the Tournament!");
+        window.closeRegisterModal();
+    } catch (e) {
+        alert("Registration Failed: " + e.message);
     }
+};
 
+window.handleLogout = async () => {
     try {
-        // 1. Add record to 'registrations'
-        await addDoc(collection(db, "registrations"), {
-            tournamentId: tournamentId,
-            userId: currentUser.uid,
-            userEmail: currentUser.email,
-            players: playerNames,
-            joinedAt: serverTimestamp()
-        });
-
-        // 2. Increment joined slots count in 'tournaments' collection
-        const tourneyRef = doc(db, "tournaments", tournamentId);
-        await updateDoc(tourneyRef, {
-            joinedSlots: increment(1)
-        });
-
-        userJoinedMatches.add(tournamentId);
-        return { success: true };
-    } catch (error) {
-        console.error("Join Tournament Error:", error);
-        return { success: false, error: error.message };
+        await signOut(auth);
+        alert("Logged out successfully!");
+        window.location.reload();
+    } catch (e) {
+        alert("Logout error: " + e.message);
     }
-}
-
-// ==========================================
-// 📸 STORAGE (RESULT SCREENSHOT UPLOAD)
-// ==========================================
-
-/**
- * Upload Match Result Screenshot to Storage
- */
-export async function uploadMatchResult(tournamentId, file) {
-    if (!currentUser) return { success: false, message: "User not logged in" };
-    if (!file) return { success: false, message: "No file selected" };
-
-    const fileRef = ref(storage, `results/${tournamentId}_${currentUser.uid}_${Date.now()}`);
-
-    try {
-        const snapshot = await uploadBytes(fileRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-
-        await addDoc(collection(db, "results"), {
-            tournamentId: tournamentId,
-            userId: currentUser.uid,
-            userEmail: currentUser.email,
-            screenshotUrl: downloadURL,
-            uploadedAt: serverTimestamp()
-        });
-
-        return { success: true, url: downloadURL };
-    } catch (error) {
-        console.error("Storage Upload Error:", error);
-        return { success: false, error: error.message };
-    }
-}
+};
