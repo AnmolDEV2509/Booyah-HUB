@@ -20,7 +20,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 // SUPER ADMIN CONFIGURATION
-const SUPER_ADMIN_EMAIL = "yourmainemail@gmail.com"; // <-- Apni main Super Admin Login Email idhar dalein!
+const SUPER_ADMIN_EMAIL = "admin2509@gmail.com"; // <-- Apni main Super Admin Login Email idhar dalein!
 
 /* ==========================================================================
    STRICT SUPER ADMIN AUTH VERIFICATION
