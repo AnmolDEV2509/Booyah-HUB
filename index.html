@@ -687,7 +687,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { 
             getFirestore, collection, doc, onSnapshot, updateDoc, addDoc, 
-            increment, serverTimestamp, query, where, getDocs, runTransaction 
+            getDoc, increment, serverTimestamp, query, where, getDocs, runTransaction 
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
         import { 
@@ -723,10 +723,23 @@
         let notifEnabled = true;
         let activePage = 'Home';
         let currentPendingAmount = 0;
+        let liveAdminUpiId = "yourupiid@okaxis"; 
 
         // Optimized Global State Variables for Wallet
         let unsubscribeWallet = null;
         let cachedWalletData = { deposit: 0, winning: 0, total: 0 };
+
+        // Fetch Live Dynamic Admin UPI
+        async function fetchSystemPaymentInfo() {
+            try {
+                const snap = await getDoc(doc(db, "system_settings", "payment_info"));
+                if(snap.exists() && snap.data().upiId) {
+                    liveAdminUpiId = snap.data().upiId;
+                }
+            } catch(e) {
+                console.error("UPI Load Error:", e);
+            }
+        }
 
         // Helper UI Renderer for Live Balance across any Tab
         function updateWalletUI(deposit, winning) {
@@ -764,6 +777,7 @@
         // Auth State Listener
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
+            fetchSystemPaymentInfo();
             if (user) {
                 setupWalletListener(user.uid);
                 await fetchUserRegistrations();
@@ -927,7 +941,6 @@
                     `;
                 }
             }
-            // Keep persistent Header state synced
             updateWalletUI(cachedWalletData.deposit, cachedWalletData.winning);
         };
 
@@ -1199,11 +1212,8 @@
             }
 
             currentPendingAmount = amountVal;
-
-            const adminUpiId = "yourupiid@okaxis"; 
             const payeeName = "Booyah HUB Esports";
-
-            const upiDeepLink = `upi://pay?pa=${adminUpiId}&pn=${encodeURIComponent(payeeName)}&am=${amountVal}&cu=INR&tn=BooyahHub_Deposit`;
+            const upiDeepLink = `upi://pay?pa=${liveAdminUpiId}&pn=${encodeURIComponent(payeeName)}&am=${amountVal}&cu=INR&tn=BooyahHub_Deposit`;
 
             window.location.href = upiDeepLink;
 
