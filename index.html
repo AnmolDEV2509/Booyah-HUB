@@ -724,37 +724,55 @@
         let activePage = 'Home';
         let currentPendingAmount = 0;
 
-        // Firebase Auth State Listener & Live Double Wallet Balance
+        // Optimized Global State Variables for Wallet
+        let unsubscribeWallet = null;
+        let cachedWalletData = { deposit: 0, winning: 0, total: 0 };
+
+        // Helper UI Renderer for Live Balance across any Tab
+        function updateWalletUI(deposit, winning) {
+            const dep = deposit || 0;
+            const win = winning || 0;
+            const total = dep + win;
+
+            cachedWalletData = { deposit: dep, winning: win, total: total };
+
+            const depElem = document.getElementById('depositVal');
+            const winElem = document.getElementById('winningVal');
+            const totalElem = document.getElementById('totalVal');
+            const headerElem = document.getElementById('headerWalletDisplay');
+
+            if (depElem) depElem.innerText = `₹ ${dep.toFixed(2)}`;
+            if (winElem) winElem.innerText = `₹ ${win.toFixed(2)}`;
+            if (totalElem) totalElem.innerText = `₹ ${total.toFixed(2)}`;
+            if (headerElem) headerElem.innerText = `₹ ${total.toFixed(2)}`;
+        }
+
+        // Dedicated Real-time Snapshot Listener
+        function setupWalletListener(uid) {
+            if (unsubscribeWallet) unsubscribeWallet();
+
+            unsubscribeWallet = onSnapshot(doc(db, "users", uid), (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    updateWalletUI(data.depositBalance, data.winningBalance);
+                }
+            }, (err) => {
+                console.error("Wallet listener error:", err);
+            });
+        }
+
+        // Auth State Listener
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             if (user) {
+                setupWalletListener(user.uid);
                 await fetchUserRegistrations();
-                onSnapshot(doc(db, "users", user.uid), (docSnap) => {
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        const dep = data.depositBalance || 0;
-                        const win = data.winningBalance || 0;
-                        const total = dep + win;
-
-                        const depElem = document.getElementById('depositVal');
-                        const winElem = document.getElementById('winningVal');
-                        const totalElem = document.getElementById('totalVal');
-                        const headerElem = document.getElementById('headerWalletDisplay');
-
-                        if (depElem) depElem.innerText = `₹ ${dep.toFixed(2)}`;
-                        if (winElem) winElem.innerText = `₹ ${win.toFixed(2)}`;
-                        if (totalElem) totalElem.innerText = `₹ ${total.toFixed(2)}`;
-                        if (headerElem) headerElem.innerText = `₹ ${total.toFixed(2)}`;
-                    }
-                });
             } else {
+                if (unsubscribeWallet) unsubscribeWallet();
                 userJoinedMatches.clear();
-                const headerElem = document.getElementById('headerWalletDisplay');
-                if (headerElem) headerElem.innerText = "₹ 0.00";
+                updateWalletUI(0, 0);
             }
-            if (activePage === 'Profile' || activePage === 'Home' || activePage === 'Wallet') {
-                window.renderCurrentPage();
-            }
+            window.renderCurrentPage();
         });
 
         function listenToAnnouncements() {
@@ -873,16 +891,16 @@
                     <div class="section-title"><i class="fa-solid fa-wallet"></i> My Wallet</div>
                     <div class="card" style="text-align: center; padding: 25px 20px;">
                         <span style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Total Available Balance</span>
-                        <h1 style="font-size: 36px; margin: 8px 0;" id="totalVal">₹ 0.00</h1>
+                        <h1 style="font-size: 36px; margin: 8px 0;" id="totalVal">₹ ${cachedWalletData.total.toFixed(2)}</h1>
 
                         <div class="wallet-stats-grid">
                             <div class="wallet-stat-card">
                                 <span>Deposit Cash</span>
-                                <h3 id="depositVal" style="color: var(--text-main);">₹ 0.00</h3>
+                                <h3 id="depositVal" style="color: var(--text-main);">₹ ${cachedWalletData.deposit.toFixed(2)}</h3>
                             </div>
                             <div class="wallet-stat-card">
                                 <span>Winnings</span>
-                                <h3 id="winningVal" style="color: var(--green-glow);">₹ 0.00</h3>
+                                <h3 id="winningVal" style="color: var(--green-glow);">₹ ${cachedWalletData.winning.toFixed(2)}</h3>
                             </div>
                         </div>
 
@@ -892,6 +910,7 @@
                         </div>
                     </div>
                 `;
+                updateWalletUI(cachedWalletData.deposit, cachedWalletData.winning);
             } else if(activePage === 'Profile') {
                 if(!currentUser) {
                     window.renderAuthScreen(content);
@@ -908,6 +927,8 @@
                     `;
                 }
             }
+            // Keep persistent Header state synced
+            updateWalletUI(cachedWalletData.deposit, cachedWalletData.winning);
         };
 
         window.renderAuthScreen = (container) => {
@@ -1349,6 +1370,7 @@
             setTimeout(() => toast.classList.remove('show'), 3000);
         };
 
+        // Initial Render Call
         window.renderCurrentPage();
     </script>
 </body>
