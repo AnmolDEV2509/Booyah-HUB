@@ -26,7 +26,6 @@ onAuthStateChanged(auth, async (user) => {
         if (user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
             document.getElementById('roleBadge').innerHTML = `<i class="fa-solid fa-crown"></i> Super Admin Verified`;
             
-            // Ab sabhi data loaders aur real-time listeners call honge
             loadPaymentSettings();
             listenSubAdmins();
             listenDepositRequests();
@@ -111,13 +110,14 @@ function listenDepositRequests() {
     });
 }
 
+// Fixed balance key name to depositBalance for sync!
 window.approveDeposit = async (requestId, userId, amount) => {
     if (!confirm(`Confirm approve ₹${amount} and add to player wallet?`)) return;
 
     try {
         const userRef = doc(db, "users", userId);
         await setDoc(userRef, {
-            walletBalance: increment(amount)
+            depositBalance: increment(amount)
         }, { merge: true });
 
         await updateDoc(doc(db, "deposit_requests", requestId), {
