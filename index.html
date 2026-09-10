@@ -487,8 +487,8 @@
 
         .form-group { margin-bottom: 10px; }
         .form-group label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-        .form-group input { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); padding: 8px 10px; border-radius: 6px; color: #fff; font-size: 12px; outline: none; }
-        .form-group input:focus { border-color: var(--accent-orange); }
+        .form-group input, .form-group select { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); padding: 8px 10px; border-radius: 6px; color: #fff; font-size: 12px; outline: none; }
+        .form-group input:focus, .form-group select:focus { border-color: var(--accent-orange); }
 
         /* Upload Area */
         .upload-box {
@@ -651,6 +651,60 @@
             </div>
 
             <button class="btn-primary btn-success" onclick="window.submitUpiVerification()">Submit for Approval</button>
+        </div>
+    </div>
+
+    <!-- Instant Withdrawal Modal -->
+    <div id="withdrawModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <div>
+                    <h3>Withdraw Winnings</h3>
+                    <span style="font-size:11px; color:var(--green-glow); font-weight:700;">MINIMUM WITHDRAWAL: ₹50</span>
+                </div>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('withdrawModal')"></i>
+            </div>
+
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+                Aap sirf apni <strong style="color:var(--green-glow);">Winnings Balance</strong> ko withdraw kar sakte hain.
+            </p>
+
+            <div class="form-group">
+                <label>Withdrawal Amount (₹)</label>
+                <input type="number" id="withdrawAmountInput" placeholder="Minimum ₹50" min="50">
+            </div>
+
+            <div class="form-group">
+                <label>Select Transfer Method</label>
+                <select id="withdrawMethodSelect" onchange="window.handleWithdrawMethodChange()">
+                    <option value="UPI">UPI ID (GPay / PhonePe / Paytm)</option>
+                    <option value="BANK">Bank Transfer (IMPS)</option>
+                </select>
+            </div>
+
+            <div id="withdrawUpiFields">
+                <div class="form-group">
+                    <label>UPI ID</label>
+                    <input type="text" id="withdrawUpiId" placeholder="e.g. username@upi or mobile@paytm">
+                </div>
+            </div>
+
+            <div id="withdrawBankFields" style="display: none;">
+                <div class="form-group">
+                    <label>Account Holder Name</label>
+                    <input type="text" id="withdrawBankName" placeholder="Full name as per Bank">
+                </div>
+                <div class="form-group">
+                    <label>Account Number</label>
+                    <input type="text" id="withdrawAccNo" placeholder="Enter Bank Account Number">
+                </div>
+                <div class="form-group">
+                    <label>IFSC Code</label>
+                    <input type="text" id="withdrawIfsc" placeholder="e.g. SBIN0001234">
+                </div>
+            </div>
+
+            <button class="btn-primary btn-success" onclick="window.submitWithdrawalRequest()" style="margin-top: 10px;">Submit Withdrawal</button>
         </div>
     </div>
 
@@ -918,7 +972,7 @@
 
                         <div style="display:flex; gap:10px; margin-top:15px;">
                             <button class="btn-primary" onclick="window.openDepositModal()">Deposit Money</button>
-                            <button class="btn-secondary" onclick="window.showToast('Withdrawal Feature Coming Soon!')">Withdraw</button>
+                            <button class="btn-secondary" onclick="window.openWithdrawModal()">Withdraw</button>
                         </div>
                     </div>
                 `;
@@ -1246,6 +1300,100 @@
                 document.getElementById('upiUtrInput').value = "";
             } catch (err) {
                 alert("Submission Error: " + err.message);
+            }
+        };
+
+        // --- WITHDRAWAL SYSTEM CODE ---
+        window.openWithdrawModal = () => {
+            if (!currentUser) {
+                alert("Pehle Login karein!");
+                return;
+            }
+            document.getElementById('withdrawModal').classList.add('active');
+        };
+
+        window.handleWithdrawMethodChange = () => {
+            const method = document.getElementById('withdrawMethodSelect').value;
+            if (method === 'UPI') {
+                document.getElementById('withdrawUpiFields').style.display = 'block';
+                document.getElementById('withdrawBankFields').style.display = 'none';
+            } else {
+                document.getElementById('withdrawUpiFields').style.display = 'none';
+                document.getElementById('withdrawBankFields').style.display = 'block';
+            }
+        };
+
+        window.submitWithdrawalRequest = async () => {
+            const amount = parseFloat(document.getElementById('withdrawAmountInput').value);
+            const method = document.getElementById('withdrawMethodSelect').value;
+
+            if (!amount || amount < 50) {
+                alert("Minimum Withdrawal Amount ₹50 hai!");
+                return;
+            }
+
+            let paymentDetails = {};
+            if (method === 'UPI') {
+                const upiId = document.getElementById('withdrawUpiId').value.trim();
+                if (!upiId || !upiId.includes('@')) {
+                    alert("Kripya valid UPI ID enter karein!");
+                    return;
+                }
+                paymentDetails = { upiId: upiId };
+            } else {
+                const bankName = document.getElementById('withdrawBankName').value.trim();
+                const accNo = document.getElementById('withdrawAccNo').value.trim();
+                const ifsc = document.getElementById('withdrawIfsc').value.trim();
+
+                if (!bankName || !accNo || !ifsc) {
+                    alert("Kripya poori Bank details bharein!");
+                    return;
+                }
+                paymentDetails = { bankName, accNo, ifsc };
+            }
+
+            const userRef = doc(db, "users", currentUser.uid);
+
+            try {
+                window.showToast("Processing Withdrawal...");
+
+                await runTransaction(db, async (transaction) => {
+                    const userSnap = await transaction.get(userRef);
+                    if (!userSnap.exists()) {
+                        throw new Error("User Account nahi mila!");
+                    }
+
+                    const userData = userSnap.data();
+                    const winningBalance = Number(userData.winningBalance) || 0;
+
+                    if (winningBalance < amount) {
+                        throw new Error("Aapke paas पर्याप्त Winning Balance nahi hai!");
+                    }
+
+                    // Deduct amount from winning balance atomically
+                    transaction.update(userRef, {
+                        winningBalance: winningBalance - amount
+                    });
+
+                    // Create withdrawal record
+                    const withdrawRef = doc(collection(db, "withdrawal_requests"));
+                    transaction.set(withdrawRef, {
+                        userId: currentUser.uid,
+                        userEmail: currentUser.email,
+                        amount: amount,
+                        method: method,
+                        paymentDetails: paymentDetails,
+                        status: "PENDING",
+                        createdAt: serverTimestamp()
+                    });
+                });
+
+                window.closeModal('withdrawModal');
+                alert("Withdrawal request submit ho gayi hai! Admin verify karke jald hi payout send kar dega.");
+                document.getElementById('withdrawAmountInput').value = "";
+                document.getElementById('withdrawUpiId').value = "";
+            } catch (err) {
+                alert("Withdrawal Error: " + err.message);
             }
         };
 
