@@ -36,13 +36,24 @@
             border: 1px solid #ffd700; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; text-transform: uppercase;
         }
 
+        /* Admin Auth Modal Overlay */
+        #authOverlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(8, 9, 12, 0.95); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center; z-index: 9999;
+        }
+        .auth-card {
+            background: var(--card-bg); border: 1px solid var(--accent-orange);
+            padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center;
+        }
+
         .grid-container { display: grid; grid-template-columns: 350px 1fr; gap: 25px; }
         @media (max-width: 900px) { .grid-container { grid-template-columns: 1fr; } }
 
         .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
         .card-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; text-transform: uppercase; display: flex; align-items: center; gap: 10px; color: var(--accent-orange); }
 
-        .form-group { margin-bottom: 12px; }
+        .form-group { margin-bottom: 12px; text-align: left; }
         .form-group label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; font-weight: 600; }
         .form-group input, .form-group select {
             width: 100%; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color);
@@ -81,14 +92,32 @@
 </head>
 <body>
 
+    <!-- AUTH OVERLAY FOR DIRECT ADMIN LOGIN -->
+    <div id="authOverlay">
+        <div class="auth-card">
+            <h2 style="font-family:'Teko'; font-size:28px; color:var(--accent-orange); margin-bottom:10px;">SUPER ADMIN LOGIN</h2>
+            <div class="form-group">
+                <label>Admin Email</label>
+                <input type="email" id="adminAuthEmail" value="admin2509@gmail.com" placeholder="admin@gmail.com">
+            </div>
+            <div class="form-group">
+                <label>Admin Password</label>
+                <input type="password" id="adminAuthPassword" placeholder="••••••••">
+            </div>
+            <button class="btn btn-primary" onclick="window.adminLogin()"><i class="fa-solid fa-lock"></i> Authenticate Dashboard</button>
+        </div>
+    </div>
+
     <header>
         <div class="brand">BOOYAH <span>HUB</span> SUPER ADMIN</div>
-        <div class="admin-badge" id="roleBadge"><i class="fa-solid fa-crown"></i> Super Admin Portal</div>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <div class="admin-badge" id="roleBadge"><i class="fa-solid fa-crown"></i> Super Admin Portal</div>
+            <button class="btn btn-danger" style="width:auto; padding:6px 12px;" onclick="window.adminLogout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+        </div>
     </header>
 
     <div class="grid-container">
-        
-        <!-- Left Column: Controls & Configurations -->
+        <!-- Controls & Configurations -->
         <div>
             <!-- Payment Settings -->
             <div class="card">
@@ -198,10 +227,9 @@
                 <div id="adminTournamentsList">Syncing with Firestore...</div>
             </div>
         </div>
-
     </div>
 
-    <!-- SUPER ADMIN SCRIPT LINK -->
+    <!-- SCRIPT LINK -->
     <script type="module" src="./admin.js"></script>
 </body>
 </html>
