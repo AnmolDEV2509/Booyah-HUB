@@ -20,11 +20,14 @@ const auth = getAuth(app);
 
 const SUPER_ADMIN_EMAIL = "admin2509@gmail.com";
 
-// Auth State Change - Saare listeners ab iske andar safe hain!
+// Auth State Change Listener
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
-            document.getElementById('roleBadge').innerHTML = `<i class="fa-solid fa-crown"></i> Super Admin Verified`;
+            const roleBadge = document.getElementById('roleBadge');
+            if (roleBadge) {
+                roleBadge.innerHTML = `<i class="fa-solid fa-crown"></i> Super Admin Verified`;
+            }
             
             loadPaymentSettings();
             listenSubAdmins();
@@ -48,8 +51,10 @@ async function loadPaymentSettings() {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
             const data = snap.data();
-            document.getElementById('adminUpiId').value = data.upiId || '';
-            document.getElementById('adminQrUrl').value = data.qrCodeUrl || '';
+            const upiEl = document.getElementById('adminUpiId');
+            const qrEl = document.getElementById('adminQrUrl');
+            if (upiEl) upiEl.value = data.upiId || '';
+            if (qrEl) qrEl.value = data.qrCodeUrl || '';
         }
     } catch (e) {
         console.error("Error loading payment settings: ", e);
@@ -110,18 +115,21 @@ function listenDepositRequests() {
     });
 }
 
-// Fixed balance key name to depositBalance for sync!
+// Approve Deposit Request & Update Wallet
 window.approveDeposit = async (requestId, userId, amount) => {
     if (!confirm(`Confirm approve ₹${amount} and add to player wallet?`)) return;
 
     try {
         const userRef = doc(db, "users", userId);
+        
+        // Admin deposit balance update karega
         await setDoc(userRef, {
             depositBalance: increment(amount)
         }, { merge: true });
 
         await updateDoc(doc(db, "deposit_requests", requestId), {
-            status: "APPROVED"
+            status: "APPROVED",
+            approvedAt: serverTimestamp()
         });
 
         alert("✅ Deposit Approved & User Wallet Updated Successfully!");
@@ -135,16 +143,18 @@ window.rejectDeposit = async (requestId) => {
 
     try {
         await updateDoc(doc(db, "deposit_requests", requestId), {
-            status: "REJECTED"
+            status: "REJECTED",
+            rejectedAt: serverTimestamp()
         });
         alert("❌ Deposit Request Rejected!");
     } catch (e) {
-        alert("Error rejecting request!");
+        alert("Error rejecting request: " + e.message);
     }
 };
 
 window.addSubAdmin = async () => {
-    const email = document.getElementById('subAdminEmail').value.trim().toLowerCase();
+    const emailInput = document.getElementById('subAdminEmail');
+    const email = emailInput.value.trim().toLowerCase();
     if (!email) return alert("Sub-Admin email type karein!");
 
     try {
@@ -153,7 +163,7 @@ window.addSubAdmin = async () => {
             addedBy: auth.currentUser ? auth.currentUser.email : 'SuperAdmin',
             createdAt: serverTimestamp()
         });
-        document.getElementById('subAdminEmail').value = "";
+        emailInput.value = "";
         alert("Sub-Admin added successfully!");
     } catch (e) {
         alert("Error adding sub-admin: " + e.message);
@@ -195,7 +205,8 @@ window.removeSubAdmin = async (emailId) => {
 };
 
 window.postAnnouncement = async () => {
-    const text = document.getElementById('announcementText').value.trim();
+    const textInput = document.getElementById('announcementText');
+    const text = textInput.value.trim();
     if(!text) return alert("Announcement text enter karo!");
 
     try {
@@ -203,7 +214,7 @@ window.postAnnouncement = async () => {
             text: text,
             createdAt: serverTimestamp()
         });
-        document.getElementById('announcementText').value = "";
+        textInput.value = "";
         alert("Announcement Added!");
     } catch(e) {
         alert("Error adding announcement: " + e.message);
@@ -275,7 +286,7 @@ window.createMatch = async () => {
         alert("Tournament Published Successfully!");
         document.getElementById('newTitle').value = "";
     } catch(e) {
-        alert("Failed to create tournament!");
+        alert("Failed to create tournament: " + e.message);
     }
 };
 
