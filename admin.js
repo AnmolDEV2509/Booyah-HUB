@@ -22,17 +22,56 @@ const auth = getAuth(app);
 
 const SUPER_ADMIN_EMAIL = "admin2509@gmail.com";
 
-// Admin Direct Login Handler
+// Fixed Admin Login Function
 window.adminLogin = async () => {
-    const email = document.getElementById('adminAuthEmail').value.trim();
-    const pass = document.getElementById('adminAuthPassword').value;
+    const emailEl = document.getElementById('adminAuthEmail');
+    const passEl = document.getElementById('adminAuthPassword');
+    const loginBtn = document.getElementById('adminLoginBtn');
 
-    if (!email || !pass) return alert("Email aur Password dono enter karo!");
+    if (!emailEl || !passEl) {
+        return alert("Error: Login fields HTML me nahi mile!");
+    }
+
+    const email = emailEl.value.trim();
+    const pass = passEl.value;
+
+    if (!email || !pass) {
+        return alert("Email aur Password dono fill karein!");
+    }
+
+    let originalBtnText = "";
+    if (loginBtn) {
+        originalBtnText = loginBtn.innerHTML;
+        loginBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...`;
+        loginBtn.disabled = true;
+    }
 
     try {
-        await signInWithEmailAndPassword(auth, email, pass);
+        const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+        const user = userCredential.user;
+
+        if (user.email.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase()) {
+            alert(`Access Denied! ${user.email} is not Super Admin.`);
+            await signOut(auth);
+        } else {
+            alert("✅ Super Admin Authenticated!");
+            const overlay = document.getElementById('authOverlay');
+            if (overlay) overlay.style.display = "none";
+        }
     } catch (e) {
-        alert("Login Failed: " + e.message);
+        console.error("Login Error:", e);
+        if (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password') {
+            alert("❌ Incorrect Password or Email!");
+        } else if (e.code === 'auth/user-not-found') {
+            alert("❌ Admin Account does not exist!");
+        } else {
+            alert("Login Failed: " + e.message);
+        }
+    } finally {
+        if (loginBtn) {
+            loginBtn.innerHTML = originalBtnText;
+            loginBtn.disabled = false;
+        }
     }
 };
 
@@ -41,11 +80,11 @@ window.adminLogout = async () => {
     location.reload();
 };
 
-// Auth State Listener
+// Auth Listener
 onAuthStateChanged(auth, async (user) => {
     const overlay = document.getElementById('authOverlay');
     if (user && user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
-        if(overlay) overlay.style.display = "none";
+        if (overlay) overlay.style.display = "none";
         
         loadPaymentSettings();
         listenSubAdmins();
@@ -53,7 +92,7 @@ onAuthStateChanged(auth, async (user) => {
         initAnnouncementsListener();
         initTournamentsListener();
     } else {
-        if(overlay) overlay.style.display = "flex";
+        if (overlay) overlay.style.display = "flex";
     }
 });
 
@@ -127,14 +166,13 @@ function listenDepositRequests() {
     });
 }
 
-// Fixed Approve Deposit Routine
+// Approve Deposit Request & Update Wallet
 window.approveDeposit = async (requestId, userId, amount) => {
     if (!confirm(`Confirm approve ₹${amount} and add to player wallet?`)) return;
 
     try {
         const userRef = doc(db, "users", userId);
         
-        // Strict UpdateDoc operation triggers Firestore rules safely
         await updateDoc(userRef, {
             depositBalance: increment(amount)
         });
