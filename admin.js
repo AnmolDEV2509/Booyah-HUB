@@ -88,6 +88,8 @@ onAuthStateChanged(auth, async (user) => {
         
         loadPaymentSettings();
         listenSubAdmins();
+        listenUsersWalletList();
+        listenWithdrawalRequests();
         listenDepositRequests();
         initAnnouncementsListener();
         initTournamentsListener();
@@ -130,6 +132,179 @@ window.savePaymentSettings = async () => {
     }
 };
 
+// ==========================================
+// 1. ALL USER WALLETS REALTIME CONTROL
+// ==========================================
+let allUsersDataCache = [];
+
+function listenUsersWalletList() {
+    onSnapshot(collection(db, "users"), (snapshot) => {
+        const container = document.getElementById('adminUsersWalletList');
+        if (!container) return;
+
+        allUsersDataCache = [];
+        snapshot.forEach(docSnap => {
+            allUsersDataCache.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        renderUsersList(allUsersDataCache);
+    });
+}
+
+function renderUsersList(usersArray) {
+    const container = document.getElementById('adminUsersWalletList');
+    if (!container) return;
+
+    if (usersArray.length === 0) {
+        container.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:10px;">Koi user nahi mila.</div>`;
+        return;
+    }
+
+    let html = '';
+    usersArray.forEach(user => {
+        const depBal = user.depositBalance || 0;
+        const winBal = user.winningBalance || 0;
+        const userIdentifier = user.email || user.username || user.id;
+
+        html += `
+            <div class="user-wallet-card" data-search="${userIdentifier.toLowerCase()} ${user.id.toLowerCase()}">
+                <div class="user-wallet-header">
+                    <div>
+                        <strong style="color:var(--text-main);">${user.email || 'No Email'}</strong>
+                        <br><span style="font-size:10px; color:var(--text-muted);">UID: ${user.id}</span>
+                    </div>
+                </div>
+                <div class="edit-grid" style="margin-top:0;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Deposit Balance (₹)</label>
+                        <input type="number" id="dep-bal-${user.id}" value="${depBal}">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Winning Balance (₹)</label>
+                        <input type="number" id="win-bal-${user.id}" value="${winBal}">
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="padding:6px; font-size:11px;" onclick="window.saveUserWalletDirect('${user.id}')">
+                    <i class="fa-solid fa-floppy-disk"></i> Update Wallet
+                </button>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+window.filterUsersList = () => {
+    const queryVal = document.getElementById('userWalletSearch').value.toLowerCase().trim();
+    const filtered = allUsersDataCache.filter(u => {
+        const emailMatch = u.email ? u.email.toLowerCase().includes(queryVal) : false;
+        const idMatch = u.id ? u.id.toLowerCase().includes(queryVal) : false;
+        return emailMatch || idMatch;
+    });
+    renderUsersList(filtered);
+};
+
+window.saveUserWalletDirect = async (userId) => {
+    const newDep = parseFloat(document.getElementById(`dep-bal-${userId}`).value);
+    const newWin = parseFloat(document.getElementById(`win-bal-${userId}`).value);
+
+    if (isNaN(newDep) || isNaN(newWin)) {
+        return alert("Valid numeric amount enter karein!");
+    }
+
+    try {
+        const userRef = doc(db, "users", userId);
+        await setDoc(userRef, {
+            depositBalance: newDep,
+            winningBalance: newWin
+        }, { merge: true });
+
+        alert(`✅ User (${userId}) Wallet Updated Successfully!`);
+    } catch (e) {
+        console.error("Error saving wallet: ", e);
+        alert("Wallet Update Failed: " + e.message);
+    }
+};
+
+// ==========================================
+// 2. WITHDRAWAL REQUESTS CONTROL
+// ==========================================
+function listenWithdrawalRequests() {
+    onSnapshot(collection(db, "withdrawal_requests"), (snapshot) => {
+        const listEl = document.getElementById('adminWithdrawalRequests');
+        if (!listEl) return;
+
+        let pendingHtml = '';
+        let hasPending = false;
+
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.status === 'PENDING') {
+                hasPending = true;
+                pendingHtml += `
+                    <div class="deposit-item">
+                        <div>
+                            <strong>User:</strong> ${data.userEmail || data.userId}<br>
+                            <strong>Amount:</strong> <span style="color:var(--accent-red);">₹${data.amount}</span><br>
+                            <strong>UPI / Payment Method:</strong> <span style="color:var(--accent-orange); font-family:monospace;">${data.upiId || data.accountDetails}</span>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn btn-success" style="width:auto; padding:6px 10px;" onclick="window.approveWithdrawal('${docSnap.id}', '${data.userId}', ${data.amount})">Approve</button>
+                            <button class="btn btn-danger" style="width:auto; padding:6px 10px;" onclick="window.rejectWithdrawal('${docSnap.id}', '${data.userId}', ${data.amount})">Reject</button>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        if (!hasPending) {
+            listEl.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:10px;">No pending withdrawal requests.</div>`;
+        } else {
+            listEl.innerHTML = pendingHtml;
+        }
+    });
+}
+
+window.approveWithdrawal = async (requestId, userId, amount) => {
+    if (!confirm(`Confirm payout of ₹${amount} to player? (Make sure payment is done manually/gateway)`)) return;
+
+    try {
+        await updateDoc(doc(db, "withdrawal_requests", requestId), {
+            status: "APPROVED",
+            approvedAt: serverTimestamp()
+        });
+
+        alert("✅ Withdrawal Request Approved!");
+    } catch (e) {
+        console.error("Withdrawal approval error:", e);
+        alert("Error approving withdrawal: " + e.message);
+    }
+};
+
+window.rejectWithdrawal = async (requestId, userId, amount) => {
+    if (!confirm("Reject request aur player ka winning balance refund karein?")) return;
+
+    try {
+        // Refund winning amount back to user's wallet
+        const userRef = doc(db, "users", userId);
+        await setDoc(userRef, {
+            winningBalance: increment(amount)
+        }, { merge: true });
+
+        await updateDoc(doc(db, "withdrawal_requests", requestId), {
+            status: "REJECTED",
+            rejectedAt: serverTimestamp()
+        });
+
+        alert("❌ Withdrawal Rejected & Amount Refunded to User Winning Balance!");
+    } catch (e) {
+        alert("Error rejecting withdrawal: " + e.message);
+    }
+};
+
+// ==========================================
+// 3. DEPOSIT REQUESTS CONTROL
+// ==========================================
 function listenDepositRequests() {
     onSnapshot(collection(db, "deposit_requests"), (snapshot) => {
         const listEl = document.getElementById('adminDepositRequests');
@@ -166,19 +341,15 @@ function listenDepositRequests() {
     });
 }
 
-// Approve Deposit Handler - Uses setDoc with merge: true to avoid 'No document to update' crash
 window.approveDeposit = async (requestId, userId, amount) => {
     if (!confirm(`Confirm approve ₹${amount} and add to player wallet?`)) return;
 
     try {
         const userRef = doc(db, "users", userId);
-        
-        // setDoc with merge: true safely creates the user doc if it doesn't exist
         await setDoc(userRef, {
             depositBalance: increment(amount)
         }, { merge: true });
 
-        // Update request status in deposit_requests collection
         await updateDoc(doc(db, "deposit_requests", requestId), {
             status: "APPROVED",
             approvedAt: serverTimestamp()
