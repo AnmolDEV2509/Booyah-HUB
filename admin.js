@@ -3,7 +3,9 @@ import {
     getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, 
     setDoc, getDoc, serverTimestamp, query, where, getDocs, increment 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { 
+    getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBd53nUisAs6ZzxKpG0Z-CMeCpfMPqvFTc",
@@ -20,28 +22,38 @@ const auth = getAuth(app);
 
 const SUPER_ADMIN_EMAIL = "admin2509@gmail.com";
 
-// Auth State Change Listener
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        if (user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
-            const roleBadge = document.getElementById('roleBadge');
-            if (roleBadge) {
-                roleBadge.innerHTML = `<i class="fa-solid fa-crown"></i> Super Admin Verified`;
-            }
-            
-            loadPaymentSettings();
-            listenSubAdmins();
-            listenDepositRequests();
-            initAnnouncementsListener();
-            initTournamentsListener();
+// Admin Direct Login Handler
+window.adminLogin = async () => {
+    const email = document.getElementById('adminAuthEmail').value.trim();
+    const pass = document.getElementById('adminAuthPassword').value;
 
-        } else {
-            alert("Access Denied! Yeh portal sirf Super Admin ke liye hai.");
-            window.location.href = "subadmin.html";
-        }
+    if (!email || !pass) return alert("Email aur Password dono enter karo!");
+
+    try {
+        await signInWithEmailAndPassword(auth, email, pass);
+    } catch (e) {
+        alert("Login Failed: " + e.message);
+    }
+};
+
+window.adminLogout = async () => {
+    await signOut(auth);
+    location.reload();
+};
+
+// Auth State Listener
+onAuthStateChanged(auth, async (user) => {
+    const overlay = document.getElementById('authOverlay');
+    if (user && user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+        if(overlay) overlay.style.display = "none";
+        
+        loadPaymentSettings();
+        listenSubAdmins();
+        listenDepositRequests();
+        initAnnouncementsListener();
+        initTournamentsListener();
     } else {
-        alert("Pehle login karein!");
-        window.location.href = "index.html";
+        if(overlay) overlay.style.display = "flex";
     }
 });
 
@@ -115,17 +127,17 @@ function listenDepositRequests() {
     });
 }
 
-// Approve Deposit Request & Update Wallet
+// Fixed Approve Deposit Routine
 window.approveDeposit = async (requestId, userId, amount) => {
     if (!confirm(`Confirm approve ₹${amount} and add to player wallet?`)) return;
 
     try {
         const userRef = doc(db, "users", userId);
         
-        // Admin deposit balance update karega
-        await setDoc(userRef, {
+        // Strict UpdateDoc operation triggers Firestore rules safely
+        await updateDoc(userRef, {
             depositBalance: increment(amount)
-        }, { merge: true });
+        });
 
         await updateDoc(doc(db, "deposit_requests", requestId), {
             status: "APPROVED",
