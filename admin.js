@@ -166,17 +166,19 @@ function listenDepositRequests() {
     });
 }
 
-// Approve Deposit Request & Update Wallet
+// Approve Deposit Handler - Uses setDoc with merge: true to avoid 'No document to update' crash
 window.approveDeposit = async (requestId, userId, amount) => {
     if (!confirm(`Confirm approve ₹${amount} and add to player wallet?`)) return;
 
     try {
         const userRef = doc(db, "users", userId);
         
-        await updateDoc(userRef, {
+        // setDoc with merge: true safely creates the user doc if it doesn't exist
+        await setDoc(userRef, {
             depositBalance: increment(amount)
-        });
+        }, { merge: true });
 
+        // Update request status in deposit_requests collection
         await updateDoc(doc(db, "deposit_requests", requestId), {
             status: "APPROVED",
             approvedAt: serverTimestamp()
@@ -184,6 +186,7 @@ window.approveDeposit = async (requestId, userId, amount) => {
 
         alert("✅ Deposit Approved & User Wallet Updated Successfully!");
     } catch (e) {
+        console.error("Deposit approval error:", e);
         alert("Error approving deposit: " + e.message);
     }
 };
