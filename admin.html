@@ -102,9 +102,9 @@
             </div>
             <div class="form-group">
                 <label>Admin Password</label>
-                <input type="password" id="adminAuthPassword" placeholder="••••••••">
+                <input type="password" id="adminAuthPassword" placeholder="••••••••" onkeydown="if(event.key === 'Enter') window.adminLogin()">
             </div>
-            <button class="btn btn-primary" onclick="window.adminLogin()"><i class="fa-solid fa-lock"></i> Authenticate Dashboard</button>
+            <button class="btn btn-primary" id="adminLoginBtn" onclick="window.adminLogin()"><i class="fa-solid fa-lock"></i> Authenticate Dashboard</button>
         </div>
     </div>
 
