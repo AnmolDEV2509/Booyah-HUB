@@ -211,6 +211,11 @@
             overflow: hidden;
             margin-bottom: 16px;
             border: 1px solid var(--border-color);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:active {
+            transform: scale(0.98);
         }
 
         .card-banner {
@@ -779,6 +784,9 @@
         let currentPendingAmount = 0;
         let liveAdminUpiId = "yourupiid@okaxis"; 
 
+        // Active Timers Tracker to prevent double interval bugs
+        let activeTimers = {};
+
         // Wallet State Management
         let unsubscribeWallet = null;
         let cachedWalletData = { deposit: 0, winning: 0, total: 0 };
@@ -1069,6 +1077,42 @@
             window.renderTournaments();
         };
 
+        window.startTimer = (id, targetTime) => {
+            if (activeTimers[id]) {
+                clearInterval(activeTimers[id]);
+            }
+
+            const updateTimer = () => {
+                const timerEl = document.getElementById(`timer-${id}`);
+                if (!timerEl) {
+                    clearInterval(activeTimers[id]);
+                    delete activeTimers[id];
+                    return;
+                }
+
+                const diff = targetTime - Date.now();
+                if (diff <= 0) {
+                    timerEl.innerText = "Match Live!";
+                    timerEl.style.color = "var(--green-glow)";
+                    clearInterval(activeTimers[id]);
+                    delete activeTimers[id];
+                } else {
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+                    if (hours > 0) {
+                        timerEl.innerText = `Starts in: ${hours}h ${mins}m ${secs}s`;
+                    } else {
+                        timerEl.innerText = `Starts in: ${mins}m ${secs}s`;
+                    }
+                }
+            };
+
+            updateTimer();
+            activeTimers[id] = setInterval(updateTimer, 1000);
+        };
+
         window.renderTournaments = () => {
             const list = document.getElementById('tourneys');
             if (!list) return;
@@ -1078,9 +1122,9 @@
             const filtered = tournamentsData.filter(item => {
                 const matchesMode = (currentModeFilter === 'ALL') || (item.mode?.toUpperCase() === currentModeFilter);
                 let matchesStatus = true;
-                if(currentStatusFilter === 'JOINED') {
+                if (currentStatusFilter === 'JOINED') {
                     matchesStatus = item.isJoined === true;
-                } else if(currentStatusFilter !== 'ALL') {
+                } else if (currentStatusFilter !== 'ALL') {
                     matchesStatus = item.status?.toUpperCase() === currentStatusFilter;
                 }
                 const matchesSearch = item.name?.toLowerCase().includes(searchQuery);
@@ -1101,13 +1145,13 @@
                 const banner = data.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=600&auto=format&fit=crop';
 
                 let statusBadgeClass = 'badge-upcoming';
-                if(status === 'LIVE') statusBadgeClass = 'badge-live';
-                else if(status === 'COMPLETED') statusBadgeClass = 'badge-completed';
+                if (status === 'LIVE') statusBadgeClass = 'badge-live';
+                else if (status === 'COMPLETED') statusBadgeClass = 'badge-completed';
 
                 let roomBoxHTML = '';
-                if(data.isJoined && data.roomId) {
+                if (data.isJoined && data.roomId) {
                     roomBoxHTML = `
-                        <div class="room-box">
+                        <div class="room-box" onclick="event.stopPropagation()">
                             <div class="room-row">
                                 <span>Room ID: <strong style="color:var(--green-glow);">${data.roomId}</strong></span>
                                 <button class="copy-btn" onclick="window.copyToClipboard('${data.roomId}', 'Room ID')"><i class="fa-regular fa-copy"></i> Copy</button>
@@ -1121,22 +1165,22 @@
                 }
 
                 let actionBtnHTML = '';
-                if(data.isJoined) {
-                    if(status === 'LIVE' || status === 'COMPLETED') {
-                        actionBtnHTML = `<button class="btn-primary btn-success" onclick="window.openResultModal('${data.id}', '${data.roomId || ''}')"><i class="fa-solid fa-trophy"></i> Upload Result / Screenshot</button>`;
+                if (data.isJoined) {
+                    if (status === 'LIVE' || status === 'COMPLETED') {
+                        actionBtnHTML = `<button class="btn-primary btn-success" onclick="event.stopPropagation(); window.openResultModal('${data.id}', '${data.roomId || ''}')"><i class="fa-solid fa-trophy"></i> Upload Result / Screenshot</button>`;
                     } else {
                         actionBtnHTML = `<button class="btn-primary" style="background:#222; border:1px solid var(--green-glow); color:var(--green-glow);" disabled><i class="fa-solid fa-circle-check"></i> Registered</button>`;
                     }
-                } else if(status === 'COMPLETED') {
+                } else if (status === 'COMPLETED') {
                     actionBtnHTML = `<button class="btn-primary" disabled style="opacity:0.5">Match Finished</button>`;
-                } else if(joined >= total) {
+                } else if (joined >= total) {
                     actionBtnHTML = `<button class="btn-primary" disabled style="opacity:0.5">Match Full</button>`;
                 } else {
-                    actionBtnHTML = `<button class="btn-primary" onclick="window.openModal('${data.id}', '${data.name}', '${data.mode}', ${data.entry || 0})">Join Match</button>`;
+                    actionBtnHTML = `<button class="btn-primary" onclick="event.stopPropagation(); window.openModal('${data.id}', '${data.name}', '${data.mode}', ${data.entry || 0})">Join Match</button>`;
                 }
 
                 list.innerHTML += `
-                    <div class="card">
+                    <div class="card" style="cursor: pointer;" onclick="window.openModal('${data.id}', '${data.name}', '${data.mode}', ${data.entry || 0})">
                         <img src="${banner}" class="card-banner" alt="Match Banner">
                         <div class="card-body">
                             <div class="card-header">
@@ -1171,32 +1215,19 @@
                     </div>
                 `;
 
-                if(data.startTime) {
-                    const timeStamp = data.startTime.seconds ? data.startTime.seconds * 1000 : data.startTime;
-                    window.startTimer(data.id, timeStamp);
+                if (data.startTime) {
+                    let timeStamp;
+                    if (typeof data.startTime === 'object' && data.startTime.seconds) {
+                        timeStamp = data.startTime.seconds * 1000;
+                    } else if (typeof data.startTime === 'string' || typeof data.startTime === 'number') {
+                        timeStamp = new Date(data.startTime).getTime();
+                    }
+
+                    if (timeStamp) {
+                        window.startTimer(data.id, timeStamp);
+                    }
                 }
             });
-        };
-
-        window.startTimer = (id, targetTime) => {
-            const interval = setInterval(() => {
-                const timerEl = document.getElementById(`timer-${id}`);
-                if(!timerEl) {
-                    clearInterval(interval);
-                    return;
-                }
-
-                const diff = targetTime - Date.now();
-                if(diff <= 0) {
-                    timerEl.innerText = "Match Live!";
-                    timerEl.style.color = "var(--green-glow)";
-                    clearInterval(interval);
-                } else {
-                    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                    const secs = Math.floor((diff % (1000 * 60)) / 1000);
-                    timerEl.innerText = `Starts in: ${mins}m ${secs}s`;
-                }
-            }, 1000);
         };
 
         let activeMatchEntryFee = 0;
