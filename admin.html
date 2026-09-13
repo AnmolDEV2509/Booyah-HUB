@@ -120,7 +120,7 @@
             border: 1px solid var(--border-color);
             padding: 12px;
             border-radius: 6px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         .tourney-header {
@@ -141,35 +141,25 @@
             display: flex;
             gap: 8px;
             margin-top: 10px;
+            flex-wrap: wrap;
         }
 
-        /* Players view container */
-        .players-container {
+        /* Hidden Expandable Edit Form & Players View */
+        .full-edit-container, .players-container {
             display: none;
             background: #11151c;
             border: 1px solid var(--border-color);
-            padding: 10px;
-            border-radius: 4px;
+            padding: 12px;
+            border-radius: 6px;
             margin-top: 10px;
+        }
+
+        .players-container {
             max-height: 200px;
             overflow-y: auto;
         }
 
-        .deposit-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-        }
-
-        .sub-admin-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-        }
-
-        .announcement-item {
+        .deposit-item, .sub-admin-item, .announcement-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
