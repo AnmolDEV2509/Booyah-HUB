@@ -20,14 +20,14 @@ const firebaseConfig = {
   appId: "1:1007690608229:web:7ce6b6d19a6200430ce08c"
 };
 
-// Initialize Firebase
+// Initialize Firebase Services
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-// App State Management
+// Application State
 let currentUser = null;
 let tournamentsData = [];
 let userJoinedMatches = new Set();
@@ -43,14 +43,34 @@ let activePage = 'Home';
 let currentPendingAmount = 0;
 let liveAdminUpiId = "yourupiid@okaxis"; 
 
-// Active Timers Tracker
 let activeTimers = {};
-
-// Wallet State Management
 let unsubscribeWallet = null;
+let unsubscribeTournaments = null;
+let unsubscribeAnnouncements = null;
 let cachedWalletData = { deposit: 0, winning: 0, total: 0 };
 
-// Fetch Admin Payment UPI
+// Utility Functions
+window.showToast = (msg) => {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${msg}`;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+};
+
+window.copyToClipboard = (text, label) => {
+    if(!text) return;
+    navigator.clipboard.writeText(text);
+    window.showToast(`${label} Copied!`);
+};
+
+window.toggleNotif = () => {
+    notifEnabled = !notifEnabled;
+    const btn = document.getElementById('notifToggle');
+    if (btn) btn.style.color = notifEnabled ? 'var(--accent-orange)' : 'var(--text-muted)';
+    window.showToast(notifEnabled ? 'Notifications Enabled' : 'Notifications Muted');
+};
+
 async function fetchSystemPaymentInfo() {
     try {
         const snap = await getDoc(doc(db, "system_settings", "payment_info"));
@@ -58,11 +78,10 @@ async function fetchSystemPaymentInfo() {
             liveAdminUpiId = snap.data().upiId;
         }
     } catch(e) {
-        console.error("UPI Load Error:", e);
+        console.error("UPI Sync Error:", e);
     }
 }
 
-// UI Helpers
 function updateWalletUI(deposit, winning) {
     const dep = Number(deposit) || 0;
     const win = Number(winning) || 0;
@@ -91,104 +110,28 @@ function setupWalletListener(uid) {
         } else {
             updateWalletUI(0, 0);
         }
-    }, (err) => {
-        console.error("Wallet listener error:", err);
-    });
+    }, (err) => console.error("Wallet listener error:", err));
 }
 
-// Auth State Observer - Controls Initial Load Properly
-onAuthStateChanged(auth, async (user) => {
-    currentUser = user;
-    await fetchSystemPaymentInfo();
-    
-    if (user) {
-        setupWalletListener(user.uid);
-        await fetchUserRegistrations();
-    } else {
-        if (unsubscribeWallet) unsubscribeWallet();
-        userJoinedMatches.clear();
-        updateWalletUI(0, 0);
-    }
-    
-    // Render Page & Bind Listeners After Auth Verification
-    await window.renderCurrentPage();
-});
-
-// Live Announcements Sync
-function listenToAnnouncements() {
-    onSnapshot(collection(db, "announcements"), (snapshot) => {
-        const tickerContent = document.getElementById('tickerContent');
-        if (!tickerContent) return;
-
-        let messages = [];
-        snapshot.forEach(docSnap => {
-            messages.push(docSnap.data().text);
-        });
-
-        if (messages.length > 0) {
-            tickerContent.innerHTML = messages.map(msg => `🔥 ${msg}`).join(" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ");
-        } else {
-            tickerContent.innerText = "🔥 Booyah HUB me aapka swagat hai! Matches join karein aur prizes jeetein!";
-        }
-    }, (error) => {
-        console.error("Announcements Error: ", error);
-    });
-}
-
-// Fetch Joined Matches
-async function fetchUserRegistrations() {
-    if(!currentUser) return;
-    try {
-        const q = query(collection(db, "registrations"), where("userId", "==", currentUser.uid));
-        const querySnapshot = await getDocs(q);
-        userJoinedMatches.clear();
-        querySnapshot.forEach((docSnap) => {
-            userJoinedMatches.add(docSnap.data().tournamentId);
-        });
-    } catch (error) {
-        console.error("Registrations Sync Error: ", error);
-    }
-}
-
-// Live Tournaments Sync
-function listenToTournaments() {
-    onSnapshot(collection(db, "tournaments"), (snapshot) => {
-        tournamentsData = [];
-        snapshot.forEach(docSnap => {
-            const data = docSnap.data();
-            tournamentsData.push({ 
-                id: docSnap.id, 
-                ...data,
-                isJoined: userJoinedMatches.has(docSnap.id)
-            });
-        });
-        window.renderTournaments();
-    }, (error) => {
-        console.error("Firebase Live Sync Error: ", error);
-    });
-}
-
-// Global UI Navigation & Render Actions
-
-window.toggleNotif = () => {
-    notifEnabled = !notifEnabled;
-    const btn = document.getElementById('notifToggle');
-    if (btn) btn.style.color = notifEnabled ? 'var(--accent-orange)' : 'var(--text-muted)';
-    window.showToast(notifEnabled ? 'Notifications Enabled' : 'Notifications Muted');
-};
-
+// Navigation Logic
 window.navigate = async (page, element) => {
     if (element) {
         document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
         element.classList.add('active');
     }
     activePage = page;
-    window.renderCurrentPage();
+    await window.renderCurrentPage();
 };
 
 window.renderCurrentPage = async () => {
     const content = document.getElementById('content');
     if (!content) return;
+
+    // Clear active timers when rendering views
+    Object.keys(activeTimers).forEach(id => {
+        clearInterval(activeTimers[id]);
+        delete activeTimers[id];
+    });
     
     if(activePage === 'Home') {
         content.innerHTML = `
@@ -214,7 +157,7 @@ window.renderCurrentPage = async () => {
             </div>
 
             <div class="section-title"><i class="fa-solid fa-fire"></i> Available Arena Matches</div>
-            <div id="tourneys">Connecting to Firestore...</div>
+            <div id="tourneys">Loading matches...</div>
         `;
 
         if(currentUser) await fetchUserRegistrations();
@@ -275,6 +218,7 @@ window.renderCurrentPage = async () => {
     updateWalletUI(cachedWalletData.deposit, cachedWalletData.winning);
 };
 
+// Auth Rendering & Handlers
 window.renderAuthScreen = (container) => {
     container.innerHTML = `
         <div class="section-title"><i class="fa-solid fa-lock"></i> User Authentication</div>
@@ -334,6 +278,55 @@ window.handleLogout = async () => {
     window.navigate('Home', document.querySelector('.nav-btn'));
 };
 
+// Data Handlers & Firebase Realtime Subscribers
+function listenToAnnouncements() {
+    if(unsubscribeAnnouncements) unsubscribeAnnouncements();
+    unsubscribeAnnouncements = onSnapshot(collection(db, "announcements"), (snapshot) => {
+        const tickerContent = document.getElementById('tickerContent');
+        if (!tickerContent) return;
+
+        let messages = [];
+        snapshot.forEach(docSnap => messages.push(docSnap.data().text));
+
+        if (messages.length > 0) {
+            tickerContent.innerHTML = messages.map(msg => `🔥 ${msg}`).join(" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ");
+        } else {
+            tickerContent.innerText = "🔥 Booyah HUB me aapka swagat hai! Matches join karein aur prizes jeetein!";
+        }
+    }, (error) => console.error("Announcements Sync Error: ", error));
+}
+
+async function fetchUserRegistrations() {
+    if(!currentUser) return;
+    try {
+        const q = query(collection(db, "registrations"), where("userId", "==", currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        userJoinedMatches.clear();
+        querySnapshot.forEach((docSnap) => {
+            userJoinedMatches.add(docSnap.data().tournamentId);
+        });
+    } catch (error) {
+        console.error("Registrations Sync Error: ", error);
+    }
+}
+
+function listenToTournaments() {
+    if(unsubscribeTournaments) unsubscribeTournaments();
+    unsubscribeTournaments = onSnapshot(collection(db, "tournaments"), (snapshot) => {
+        tournamentsData = [];
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            tournamentsData.push({ 
+                id: docSnap.id, 
+                ...data,
+                isJoined: userJoinedMatches.has(docSnap.id)
+            });
+        });
+        window.renderTournaments();
+    }, (error) => console.error("Tournaments Sync Error: ", error));
+}
+
+// Filters & Rendering
 window.setModeFilter = (mode, el) => {
     document.querySelectorAll('.mode-chip').forEach(c => c.classList.remove('active'));
     el.classList.add('active');
@@ -349,9 +342,7 @@ window.setStatusFilter = (status, el) => {
 };
 
 window.startTimer = (id, targetTime) => {
-    if (activeTimers[id]) {
-        clearInterval(activeTimers[id]);
-    }
+    if (activeTimers[id]) clearInterval(activeTimers[id]);
 
     const updateTimer = () => {
         const timerEl = document.getElementById(`timer-${id}`);
@@ -371,12 +362,7 @@ window.startTimer = (id, targetTime) => {
             const hours = Math.floor(diff / (1000 * 60 * 60));
             const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-            if (hours > 0) {
-                timerEl.innerText = `Starts in: ${hours}h ${mins}m ${secs}s`;
-            } else {
-                timerEl.innerText = `Starts in: ${mins}m ${secs}s`;
-            }
+            timerEl.innerText = hours > 0 ? `Starts in: ${hours}h ${mins}m ${secs}s` : `Starts in: ${mins}m ${secs}s`;
         }
     };
 
@@ -494,13 +480,12 @@ window.renderTournaments = () => {
                 timeStamp = new Date(data.startTime).getTime();
             }
 
-            if (timeStamp) {
-                window.startTimer(data.id, timeStamp);
-            }
+            if (timeStamp) window.startTimer(data.id, timeStamp);
         }
     });
 };
 
+// Modal Actions
 window.openModal = (matchId, name, mode, entryFee) => {
     if(!currentUser) {
         alert("Please Login first to join tournaments!");
@@ -544,7 +529,8 @@ window.openModal = (matchId, name, mode, entryFee) => {
 };
 
 window.closeModal = (modalId) => {
-    document.getElementById(modalId).classList.remove('active');
+    const target = document.getElementById(modalId);
+    if(target) target.classList.remove('active');
 };
 
 window.openDepositModal = () => {
@@ -666,7 +652,7 @@ window.submitWithdrawalRequest = async () => {
             const winningBalance = Number(userData.winningBalance) || 0;
 
             if (winningBalance < amount) {
-                throw new Error("Aapke paas पर्याप्त Winning Balance nahi hai!");
+                throw new Error("Aapke paas sufficient Winning Balance nahi hai!");
             }
 
             transaction.update(userRef, {
@@ -728,7 +714,7 @@ window.confirmJoin = async () => {
             const currentJoined = Number(tourneyData.joinedSlots) || 0;
 
             if (currentJoined + playerCounts > totalSlots) {
-                throw new Error(`Iss match me sirf ${totalSlots - currentJoined} slots bache hain! Aapki team (${playerCounts} players) fit nahi ho sakti.`);
+                throw new Error(`Iss match me sirf ${totalSlots - currentJoined} slots bache hain!`);
             }
 
             const userData = userSnap.data();
@@ -820,16 +806,21 @@ window.submitResult = async () => {
     }
 };
 
-window.copyToClipboard = (text, label) => {
-    if(!text) return;
-    navigator.clipboard.writeText(text);
-    window.showToast(`${label} Copied!`);
-};
-
-window.showToast = (msg) => {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-    toast.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${msg}`;
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 3000);
-};
+// Application Bootstrapper
+document.addEventListener('DOMContentLoaded', () => {
+    onAuthStateChanged(auth, async (user) => {
+        currentUser = user;
+        await fetchSystemPaymentInfo();
+        
+        if (user) {
+            setupWalletListener(user.uid);
+            await fetchUserRegistrations();
+        } else {
+            if (unsubscribeWallet) unsubscribeWallet();
+            userJoinedMatches.clear();
+            updateWalletUI(0, 0);
+        }
+        
+        await window.renderCurrentPage();
+    });
+});
