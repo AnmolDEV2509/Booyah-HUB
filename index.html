@@ -443,6 +443,16 @@
 
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 
+        /* Dynamic Preview Sheet Styles */
+        .preview-banner {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-bottom: 14px;
+            border: 1px solid var(--border-color);
+        }
+
         /* Rules Accordion Inside Modal */
         .rules-box {
             background: rgba(0,0,0,0.3);
@@ -582,7 +592,50 @@
         </div>
     </nav>
 
-    <!-- Join Match Dynamic Modal -->
+    <!-- Tournament Overview Details Modal -->
+    <div id="detailsModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <div>
+                    <h3 id="detailTitle">Tournament Details</h3>
+                    <span id="detailMode" style="font-size:11px; color:var(--accent-orange); font-weight:700;">MODE: SOLO</span>
+                </div>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('detailsModal')"></i>
+            </div>
+
+            <img id="detailBanner" src="" class="preview-banner" alt="Match Preview Banner">
+
+            <div class="card-details" style="margin-bottom:15px;">
+                <div class="detail-item"><span>Prize Pool</span><strong id="detailPrize">₹0</strong></div>
+                <div class="detail-item"><span>Entry Fee</span><strong id="detailEntry">₹0</strong></div>
+                <div class="detail-item"><span>Match Mode</span><strong id="detailModeBox">SOLO</strong></div>
+            </div>
+
+            <div class="slot-tracker" style="margin-bottom:15px;">
+                <div class="slot-info">
+                    <span>Slots Filled</span>
+                    <span id="detailSlotsText">0/0</span>
+                </div>
+                <div class="progress-bg">
+                    <div id="detailSlotProgress" class="progress-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <details class="rules-box" open>
+                <summary><i class="fa-solid fa-shield-halved"></i> Tournament Rules & Match Guidelines</summary>
+                <ul>
+                    <li>No Emulators allowed (Strictly Mobile Players Only).</li>
+                    <li>Gun attributes & character skills are set as per match mode.</li>
+                    <li>Teaming or hacking will lead to a permanent ban & zero refund.</li>
+                    <li>Make sure to join Room 10 minutes prior to the start time.</li>
+                </ul>
+            </details>
+
+            <div id="detailsActionArea"></div>
+        </div>
+    </div>
+
+    <!-- Join Match Dynamic Form Modal -->
     <div id="joinModal" class="modal-overlay">
         <div class="modal-sheet">
             <div class="modal-header">
@@ -593,15 +646,6 @@
                 <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('joinModal')"></i>
             </div>
 
-            <details class="rules-box">
-                <summary><i class="fa-solid fa-shield-halved"></i> Read Tournament Rules & Terms</summary>
-                <ul>
-                    <li>No Emulators allowed (Mobile Players Only).</li>
-                    <li>Gun attributes & character skills are set as per match mode.</li>
-                    <li>Teaming or hacking will lead to a permanent ban & zero refund.</li>
-                </ul>
-            </details>
-            
             <div id="dynamicFormContainer"></div>
 
             <button class="btn-primary" onclick="window.confirmJoin()" style="margin-top:10px;">Confirm Registration</button>
@@ -1176,11 +1220,11 @@
                 } else if (joined >= total) {
                     actionBtnHTML = `<button class="btn-primary" disabled style="opacity:0.5">Match Full</button>`;
                 } else {
-                    actionBtnHTML = `<button class="btn-primary" onclick="event.stopPropagation(); window.openModal('${data.id}', '${data.name}', '${data.mode}', ${data.entry || 0})">Join Match</button>`;
+                    actionBtnHTML = `<button class="btn-primary" onclick="event.stopPropagation(); window.openDetailsModal('${data.id}')">View Details</button>`;
                 }
 
                 list.innerHTML += `
-                    <div class="card" style="cursor: pointer;" onclick="window.openModal('${data.id}', '${data.name}', '${data.mode}', ${data.entry || 0})">
+                    <div class="card" style="cursor: pointer;" onclick="window.openDetailsModal('${data.id}')">
                         <img src="${banner}" class="card-banner" alt="Match Banner">
                         <div class="card-body">
                             <div class="card-header">
@@ -1231,6 +1275,47 @@
         };
 
         let activeMatchEntryFee = 0;
+
+        // Open Tournament Details First (Popup Flow)
+        window.openDetailsModal = (matchId) => {
+            const data = tournamentsData.find(item => item.id === matchId);
+            if (!data) return;
+
+            document.getElementById('detailTitle').innerText = data.name || 'Tournament Details';
+            document.getElementById('detailMode').innerText = `MODE: ${(data.mode || 'SOLO').toUpperCase()}`;
+            document.getElementById('detailModeBox').innerText = (data.mode || 'SOLO').toUpperCase();
+            document.getElementById('detailPrize').innerText = `₹${data.prize || 0}`;
+            document.getElementById('detailEntry').innerText = `₹${data.entry || 0}`;
+            
+            const bannerImg = data.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=600&auto=format&fit=crop';
+            document.getElementById('detailBanner').src = bannerImg;
+
+            const total = data.totalSlots || 48;
+            const joined = data.joinedSlots || 0;
+            const percent = Math.round((joined / total) * 100);
+
+            document.getElementById('detailSlotsText').innerText = `${joined}/${total}`;
+            document.getElementById('detailSlotProgress').style.width = `${percent}%`;
+
+            const actionArea = document.getElementById('detailsActionArea');
+            const status = data.status || 'UPCOMING';
+
+            if (data.isJoined) {
+                if (status === 'LIVE' || status === 'COMPLETED') {
+                    actionArea.innerHTML = `<button class="btn-primary btn-success" onclick="window.closeModal('detailsModal'); window.openResultModal('${data.id}', '${data.roomId || ''}')"><i class="fa-solid fa-trophy"></i> Upload Result / Screenshot</button>`;
+                } else {
+                    actionArea.innerHTML = `<button class="btn-primary" style="background:#222; border:1px solid var(--green-glow); color:var(--green-glow);" disabled><i class="fa-solid fa-circle-check"></i> Already Registered</button>`;
+                }
+            } else if (status === 'COMPLETED') {
+                actionArea.innerHTML = `<button class="btn-primary" disabled style="opacity:0.5">Match Finished</button>`;
+            } else if (joined >= total) {
+                actionArea.innerHTML = `<button class="btn-primary" disabled style="opacity:0.5">Match Full</button>`;
+            } else {
+                actionArea.innerHTML = `<button class="btn-primary" onclick="window.closeModal('detailsModal'); window.openModal('${data.id}', '${data.name}', '${data.mode}', ${data.entry || 0})">Proceed to Register</button>`;
+            }
+
+            document.getElementById('detailsModal').classList.add('active');
+        };
 
         window.openModal = (matchId, name, mode, entryFee) => {
             if(!currentUser) {
