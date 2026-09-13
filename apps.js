@@ -691,6 +691,7 @@ window.submitWithdrawalRequest = async () => {
     }
 };
 
+// UPDATED: Dynamic Multi-Slot Increment & Team Registration Logic
 window.confirmJoin = async () => {
     let playerCounts = 1;
     if (selectedMatchMode === 'DUO') playerCounts = 2;
@@ -720,6 +721,15 @@ window.confirmJoin = async () => {
                 throw new Error("Match ya User data nahi mila!");
             }
 
+            const tourneyData = tourneySnap.data();
+            const totalSlots = Number(tourneyData.totalSlots) || 48;
+            const currentJoined = Number(tourneyData.joinedSlots) || 0;
+
+            // Slot Overbooking Guard
+            if (currentJoined + playerCounts > totalSlots) {
+                throw new Error(`Iss match me sirf ${totalSlots - currentJoined} slots bache hain! Aapki team (${playerCounts} players) fit nahi ho sakti.`);
+            }
+
             const userData = userSnap.data();
             let deposit = Number(userData.depositBalance) || 0;
             let winning = Number(userData.winningBalance) || 0;
@@ -744,8 +754,10 @@ window.confirmJoin = async () => {
                 depositBalance: deposit,
                 winningBalance: winning 
             });
+
+            // FIXED: Increment by actual team player count (1, 2, or 4)
             transaction.update(tourneyRef, { 
-                joinedSlots: increment(1) 
+                joinedSlots: increment(playerCounts) 
             });
 
             const regRef = doc(collection(db, "registrations"));
@@ -753,6 +765,8 @@ window.confirmJoin = async () => {
                 tournamentId: currentMatchToJoin,
                 userId: currentUser.uid,
                 userEmail: currentUser.email,
+                matchMode: selectedMatchMode,
+                teamSize: playerCounts,
                 players: playersDataArr,
                 joinedAt: serverTimestamp()
             });
