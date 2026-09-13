@@ -127,7 +127,6 @@ window.renderCurrentPage = async () => {
     const content = document.getElementById('content');
     if (!content) return;
 
-    // Clear active timers when rendering views
     Object.keys(activeTimers).forEach(id => {
         clearInterval(activeTimers[id]);
         delete activeTimers[id];
