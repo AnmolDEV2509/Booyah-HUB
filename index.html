@@ -93,6 +93,7 @@
             border-radius: 20px;
             font-size: 13px;
             border: 1px solid var(--border-color);
+            cursor: pointer;
         }
 
         .user-badge i { color: var(--accent-orange); }
@@ -557,8 +558,8 @@
 
         .form-group { margin-bottom: 10px; }
         .form-group label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-        .form-group input { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); padding: 8px 10px; border-radius: 6px; color: #fff; font-size: 12px; outline: none; }
-        .form-group input:focus { border-color: var(--accent-orange); }
+        .form-group input, .form-group select { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; color: #fff; font-size: 12px; outline: none; }
+        .form-group input:focus, .form-group select:focus { border-color: var(--accent-orange); }
 
         /* Upload Area */
         .upload-box {
@@ -633,9 +634,9 @@
             <button class="notif-btn" id="notifToggle" onclick="window.toggleNotif()" title="Toggle Sound/Alerts">
                 <i class="fa-solid fa-bell"></i>
             </button>
-            <div class="user-badge">
+            <div class="user-badge" onclick="window.navigate('Wallet', document.querySelectorAll('.nav-btn')[2])">
                 <i class="fa-solid fa-coins"></i>
-                <span>₹ 250</span>
+                <span id="headerWalletDisplay">₹ 0.00</span>
             </div>
         </div>
     </header>
@@ -775,12 +776,88 @@
         </div>
     </div>
 
+    <!-- DEPOSIT INITIAL AMOUNT MODAL -->
+    <div id="depositModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>Deposit Money</h3>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('depositModal')"></i>
+            </div>
+            <div class="form-group">
+                <label>Enter Amount (Min ₹10)</label>
+                <input type="number" id="depositAmountInput" placeholder="e.g. 100" min="10">
+            </div>
+            <button class="btn-primary" onclick="window.startDirectUpiPayment()" style="margin-top:10px;">Pay via UPI</button>
+        </div>
+    </div>
+
+    <!-- VERIFY UPI UTR MODAL -->
+    <div id="verifyUpiModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>Verify UPI Payment</h3>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('verifyUpiModal')"></i>
+            </div>
+            <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">Payment complete karne ke baad Google Pay/PhonePe/Paytm se 12-digit UTR/Ref ID enter karein:</p>
+            <div class="form-group">
+                <label>12-Digit UTR Number</label>
+                <input type="text" id="upiUtrInput" placeholder="e.g. 329104829102" maxlength="12">
+            </div>
+            <button class="btn-primary btn-success" onclick="window.submitUpiVerification()" style="margin-top:10px;">Submit UTR Code</button>
+        </div>
+    </div>
+
+    <!-- WITHDRAW MODAL -->
+    <div id="withdrawModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>Withdraw Winnings</h3>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('withdrawModal')"></i>
+            </div>
+            <div class="form-group">
+                <label>Amount (Min ₹50)</label>
+                <input type="number" id="withdrawAmountInput" placeholder="e.g. 150" min="50">
+            </div>
+            <div class="form-group">
+                <label>Withdrawal Method</label>
+                <select id="withdrawMethodSelect" onchange="window.handleWithdrawMethodChange()">
+                    <option value="UPI">UPI Payment</option>
+                    <option value="BANK">Bank Transfer</option>
+                </select>
+            </div>
+            
+            <div id="withdrawUpiFields">
+                <div class="form-group">
+                    <label>UPI ID</label>
+                    <input type="text" id="withdrawUpiId" placeholder="username@upi">
+                </div>
+            </div>
+
+            <div id="withdrawBankFields" style="display:none;">
+                <div class="form-group">
+                    <label>Bank Name</label>
+                    <input type="text" id="withdrawBankName" placeholder="e.g. SBI / HDFC">
+                </div>
+                <div class="form-group">
+                    <label>Account Number</label>
+                    <input type="text" id="withdrawAccNo" placeholder="Account Number">
+                </div>
+                <div class="form-group">
+                    <label>IFSC Code</label>
+                    <input type="text" id="withdrawIfsc" placeholder="IFSC Code">
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="window.submitWithdrawalRequest()" style="margin-top:10px;">Request Withdrawal</button>
+        </div>
+    </div>
+
     <!-- FIREBASE MODULE SCRIPT -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { 
             getFirestore, collection, doc, onSnapshot, updateDoc, addDoc, 
-            increment, serverTimestamp, query, where, getDocs 
+            increment, serverTimestamp, query, where, getDocs, getDoc, setDoc
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
         import { 
@@ -793,7 +870,7 @@
           apiKey: "AIzaSyBd53nUisAs6ZzxKpG0Z-CMeCpfMPqvFTc",
           authDomain: "booyah-hub-e041d.firebaseapp.com",
           projectId: "booyah-hub-e041d",
-          storageBucket: "booyah-hub-e041d.firebasestorage.app",
+          storageBucket: "booyah-hub-e041d.appspot.com",
           messagingSenderId: "1007690608229",
           appId: "1:1007690608229:web:7ce6b6d19a6200430ce08c"
         };
@@ -805,6 +882,7 @@
         const googleProvider = new GoogleAuthProvider();
 
         let currentUser = null;
+        let userBalance = 0;
         let tournamentsData = [];
         let userJoinedMatches = new Set();
         let currentModeFilter = 'ALL';
@@ -813,23 +891,58 @@
         let currentMatchToJoin = null;
         let selectedResultFile = null;
         let selectedResultMatchId = null;
+        let pendingDepositAmount = 0;
         let notifEnabled = true;
         let activePage = 'Home';
 
-        // Auth Listener
+        // Auth & User Profile Data Listener
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             if (user) {
+                await syncUserProfile(user);
                 await fetchUserRegistrations();
+                listenToUserBalance(user.uid);
             } else {
                 userJoinedMatches.clear();
+                userBalance = 0;
+                updateWalletHeaderDisplay(0);
             }
-            if (activePage === 'Profile' || activePage === 'Home') {
+            if (activePage === 'Profile' || activePage === 'Home' || activePage === 'Wallet') {
                 window.renderCurrentPage();
             }
         });
 
-        // Announcements Listener
+        async function syncUserProfile(user) {
+            const userRef = doc(db, "users", user.uid);
+            const userSnap = await getDoc(userRef);
+            if (!userSnap.exists()) {
+                await setDoc(userRef, {
+                    name: user.displayName || 'Gamer User',
+                    email: user.email,
+                    walletBalance: 0,
+                    createdAt: serverTimestamp()
+                });
+            }
+        }
+
+        function listenToUserBalance(uid) {
+            onSnapshot(doc(db, "users", uid), (docSnap) => {
+                if (docSnap.exists()) {
+                    userBalance = docSnap.data().walletBalance || 0;
+                    updateWalletHeaderDisplay(userBalance);
+                    if (activePage === 'Wallet') {
+                        const balanceEl = document.getElementById('walletBalanceVal');
+                        if (balanceEl) balanceEl.innerText = `₹${userBalance.toFixed(2)}`;
+                    }
+                }
+            });
+        }
+
+        function updateWalletHeaderDisplay(val) {
+            const el = document.getElementById('headerWalletDisplay');
+            if (el) el.innerText = `₹ ${val.toFixed(2)}`;
+        }
+
         function listenToAnnouncements() {
             onSnapshot(collection(db, "announcements"), (snapshot) => {
                 const tickerContent = document.getElementById('tickerContent');
@@ -850,7 +963,6 @@
             });
         }
 
-        // Fetch User Registrations
         async function fetchUserRegistrations() {
             if(!currentUser) return;
             try {
@@ -865,7 +977,6 @@
             }
         }
 
-        // Live Real-Time Firestore Tournament Listener
         function listenToTournaments() {
             onSnapshot(collection(db, "tournaments"), (snapshot) => {
                 tournamentsData = [];
@@ -948,10 +1059,10 @@
                     <div class="section-title"><i class="fa-solid fa-wallet"></i> My Wallet</div>
                     <div class="card" style="text-align: center; padding: 25px 20px;">
                         <span style="color: var(--text-muted); font-size: 11px; text-transform: uppercase;">Current Balance</span>
-                        <h1 style="font-size: 36px; margin: 8px 0;">₹250.00</h1>
+                        <h1 id="walletBalanceVal" style="font-size: 36px; margin: 8px 0;">₹${userBalance.toFixed(2)}</h1>
                         <div style="display:flex; gap:10px; margin-top:15px;">
-                            <button class="btn-primary">Deposit</button>
-                            <button class="btn-secondary">Withdraw</button>
+                            <button class="btn-primary" onclick="window.openDepositModal()">Deposit</button>
+                            <button class="btn-secondary" onclick="window.openWithdrawModal()">Withdraw</button>
                         </div>
                     </div>
                 `;
@@ -1122,7 +1233,6 @@
                                 <span class="badge-status ${statusBadgeClass}">${status}</span>
                             </div>
                             
-                            <!-- ADVANCED HUD COUNTDOWN DISPLAY -->
                             <div class="countdown-hud">
                                 <i class="fa-solid fa-stopwatch"></i>
                                 <div class="time-box"><span class="time-num" id="cd-h-${data.id}">00</span><span class="time-label">HRS</span></div>
@@ -1140,7 +1250,6 @@
 
                             ${roomBoxHTML}
 
-                            <!-- ADVANCED SLOT TRACKER WITH ALMOST FULL BLINK -->
                             <div class="slot-tracker">
                                 <div class="slot-info">
                                     <span>Slots Filled ${isAlmostFull ? '<span class="badge-almost-full">🔥 ALMOST FULL!</span>' : ''}</span>
@@ -1163,7 +1272,6 @@
             });
         };
 
-        // ADVANCED COUNTER (Hours, Mins, Secs HUD Layout)
         window.startAdvancedTimer = (id, targetTime) => {
             const interval = setInterval(() => {
                 const elH = document.getElementById(`cd-h-${id}`);
@@ -1193,7 +1301,6 @@
             }, 1000);
         };
 
-        // ADVANCED MATCH DETAILS POPUP WITH VISUAL SEAT GRID
         window.openDetailsModal = (matchId) => {
             const data = tournamentsData.find(t => t.id === matchId);
             if(!data) return;
@@ -1208,7 +1315,6 @@
             const joined = data.joinedSlots || 0;
             document.getElementById('detSlotText').innerText = `${joined}/${total} Seats Filled`;
 
-            // Dynamic Seat Dot Grid Generation
             const grid = document.getElementById('seatsGrid');
             grid.innerHTML = "";
             for(let i = 1; i <= total; i++) {
@@ -1216,7 +1322,6 @@
                 grid.innerHTML += `<div class="seat-dot ${isFilled ? 'filled' : ''}">${i}</div>`;
             }
 
-            // Calculate Dynamic Prize Breakdown Table
             const prizeNum = parseInt(data.prize) || 0;
             document.getElementById('payout1').innerText = `₹${Math.round(prizeNum * 0.5)}`;
             document.getElementById('payout2').innerText = `₹${Math.round(prizeNum * 0.25)}`;
@@ -1277,6 +1382,16 @@
         };
 
         window.confirmJoin = async () => {
+            const match = tournamentsData.find(t => t.id === currentMatchToJoin);
+            const entryFee = parseInt(match?.entry || 0);
+
+            if (userBalance < entryFee) {
+                alert(`Insufficient balance! Minimum ₹${entryFee} required.`);
+                window.closeModal('joinModal');
+                window.openDepositModal();
+                return;
+            }
+
             let playerCounts = 1;
             if (selectedMatchMode === 'DUO') playerCounts = 2;
             else if (selectedMatchMode === 'SQUAD' || selectedMatchMode === 'CS') playerCounts = 4;
@@ -1305,6 +1420,12 @@
                 await updateDoc(doc(db, "tournaments", currentMatchToJoin), {
                     joinedSlots: increment(1)
                 });
+
+                if (entryFee > 0) {
+                    await updateDoc(doc(db, "users", currentUser.uid), {
+                        walletBalance: increment(-entryFee)
+                    });
+                }
 
                 userJoinedMatches.add(currentMatchToJoin);
                 window.closeModal('joinModal');
@@ -1354,6 +1475,97 @@
             }
         };
 
+        /* WALLET SYSTEM ACTIONS */
+        window.openDepositModal = () => {
+            if (!currentUser) return alert("Please login to deposit money!");
+            document.getElementById('depositModal').classList.add('active');
+        };
+
+        window.startDirectUpiPayment = () => {
+            const amt = parseFloat(document.getElementById('depositAmountInput').value);
+            if (!amt || amt < 10) return alert("Minimum deposit is ₹10");
+            
+            pendingDepositAmount = amt;
+            window.closeModal('depositModal');
+
+            const upiUrl = `upi://pay?pa=booyahhub@upi&pn=BooyahHUB&am=${amt}&cu=INR`;
+            window.open(upiUrl, '_blank');
+
+            document.getElementById('verifyUpiModal').classList.add('active');
+        };
+
+        window.submitUpiVerification = async () => {
+            const utr = document.getElementById('upiUtrInput').value.trim();
+            if (utr.length !== 12) return alert("Please enter valid 12-digit UTR code!");
+
+            try {
+                await addDoc(collection(db, "transactions"), {
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    amount: pendingDepositAmount,
+                    utr: utr,
+                    type: 'DEPOSIT',
+                    status: 'PENDING',
+                    createdAt: serverTimestamp()
+                });
+
+                window.closeModal('verifyUpiModal');
+                window.showToast("Deposit Request Submitted! Pending Admin Approval.");
+            } catch (err) {
+                alert("Deposit Submission Failed: " + err.message);
+            }
+        };
+
+        window.openWithdrawModal = () => {
+            if (!currentUser) return alert("Please login to withdraw!");
+            document.getElementById('withdrawModal').classList.add('active');
+        };
+
+        window.handleWithdrawMethodChange = () => {
+            const method = document.getElementById('withdrawMethodSelect').value;
+            document.getElementById('withdrawUpiFields').style.display = (method === 'UPI') ? 'block' : 'none';
+            document.getElementById('withdrawBankFields').style.display = (method === 'BANK') ? 'block' : 'none';
+        };
+
+        window.submitWithdrawalRequest = async () => {
+            const amt = parseFloat(document.getElementById('withdrawAmountInput').value);
+            if (!amt || amt < 50) return alert("Minimum withdrawal is ₹50");
+            if (amt > userBalance) return alert("Insufficient balance!");
+
+            const method = document.getElementById('withdrawMethodSelect').value;
+            let details = {};
+
+            if (method === 'UPI') {
+                const upiId = document.getElementById('withdrawUpiId').value.trim();
+                if (!upiId) return alert("Enter valid UPI ID!");
+                details = { upiId };
+            } else {
+                const bank = document.getElementById('withdrawBankName').value.trim();
+                const acc = document.getElementById('withdrawAccNo').value.trim();
+                const ifsc = document.getElementById('withdrawIfsc').value.trim();
+                if (!bank || !acc || !ifsc) return alert("Fill all bank details!");
+                details = { bank, acc, ifsc };
+            }
+
+            try {
+                await addDoc(collection(db, "transactions"), {
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    amount: amt,
+                    method,
+                    details,
+                    type: 'WITHDRAW',
+                    status: 'PENDING',
+                    createdAt: serverTimestamp()
+                });
+
+                window.closeModal('withdrawModal');
+                window.showToast("Withdrawal Requested Successfully!");
+            } catch (err) {
+                alert("Withdrawal Request Failed: " + err.message);
+            }
+        };
+
         window.copyToClipboard = (text, label) => {
             if(!text) return;
             navigator.clipboard.writeText(text);
@@ -1367,7 +1579,6 @@
             setTimeout(() => toast.classList.remove('show'), 3000);
         };
 
-        // Initialize First Render
         window.renderCurrentPage();
     </script>
 </body>
