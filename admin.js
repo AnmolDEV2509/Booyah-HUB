@@ -290,7 +290,7 @@ window.rejectWithdrawal = async (requestId, userId, amount) => {
             winningBalance: increment(amount)
         }, { merge: true });
 
-        await updateDoc(doc(db, "withdrawal_requests", requestId), {
+        await updateDoc(doc(doc(db, "withdrawal_requests", requestId)), {
             status: "REJECTED",
             rejectedAt: serverTimestamp()
         });
@@ -481,11 +481,14 @@ window.deleteAnnouncement = async (id) => {
 window.createMatch = async () => {
     const title = document.getElementById('newTitle').value.trim();
     const mode = document.getElementById('newMode').value;
+    const map = document.getElementById('newMap').value;
     const totalSlots = parseInt(document.getElementById('newSlots').value);
+    const perKill = parseInt(document.getElementById('newPerKill').value) || 0;
     const entry = parseInt(document.getElementById('newEntry').value);
     const prize = parseInt(document.getElementById('newPrize').value);
     const startTimeVal = document.getElementById('newStartTime').value;
     const banner = document.getElementById('newBanner').value.trim() || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=600&auto=format&fit=crop';
+    const description = document.getElementById('newDescription').value.trim() || 'No specific rules provided.';
 
     if(!title || !startTimeVal) return alert("Please fill all required fields!");
 
@@ -493,12 +496,15 @@ window.createMatch = async () => {
         await addDoc(collection(db, "tournaments"), {
             name: title,
             mode: mode,
+            map: map,
             totalSlots: totalSlots,
             joinedSlots: 0,
+            perKill: perKill,
             entry: entry,
             prize: prize,
             startTime: new Date(startTimeVal).getTime(),
             banner: banner,
+            description: description,
             status: 'UPCOMING',
             roomId: '',
             roomPass: '',
@@ -508,6 +514,7 @@ window.createMatch = async () => {
 
         alert("Tournament Published Successfully!");
         document.getElementById('newTitle').value = "";
+        document.getElementById('newDescription').value = "";
     } catch(e) {
         alert("Failed to create tournament: " + e.message);
     }
@@ -533,7 +540,7 @@ function initTournamentsListener() {
                     <div class="tourney-header">
                         <div>
                             <strong style="font-size:15px;">${data.name}</strong>
-                            <span style="font-size:11px; color:var(--accent-orange); margin-left:8px;">[${data.mode}]</span>
+                            <span style="font-size:11px; color:var(--accent-orange); margin-left:8px;">[${data.mode} | ${data.map || 'Bermuda'}]</span>
                         </div>
                         <select id="status-${id}" onchange="window.updateStatus('${id}')" style="background:#000; color:#fff; border:1px solid var(--border-color); padding:4px 8px; border-radius:4px; font-size:11px;">
                             <option value="UPCOMING" ${data.status === 'UPCOMING' ? 'selected' : ''}>UPCOMING</option>
