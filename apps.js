@@ -43,7 +43,7 @@ let activePage = 'Home';
 let currentPendingAmount = 0;
 let liveAdminUpiId = "yourupiid@okaxis"; 
 
-// Active Timers Tracker (Timer blinking & memory leaks fix karne ke liye)
+// Active Timers Tracker
 let activeTimers = {};
 
 // Wallet State Management
@@ -165,7 +165,7 @@ function listenToTournaments() {
     });
 }
 
-// Window Global Functions (HTML Events Ke Liye Window Object Par Attach Kiye Hain)
+// Window Global Functions
 
 window.toggleNotif = () => {
     notifEnabled = !notifEnabled;
@@ -556,7 +556,7 @@ window.startDirectUpiPayment = () => {
     const amountVal = parseFloat(document.getElementById('depositAmountInput').value);
 
     if (!amountVal || amountVal < 10) {
-        alert("Bhai kam se kam ₹10 enter karo!");
+        alert("Kam se kam ₹10 enter karo!");
         return;
     }
 
@@ -593,7 +593,7 @@ window.submitUpiVerification = async () => {
         });
 
         window.closeModal('verifyUpiModal');
-        alert("Deposit request submit ho gayi hai! Admin verify karke jald hi balance add kar dega.");
+        alert("Deposit request submit ho gayi hai! Admin verify karke balance add kar dega.");
         document.getElementById('upiUtrInput').value = "";
     } catch (err) {
         alert("Submission Error: " + err.message);
@@ -683,7 +683,7 @@ window.submitWithdrawalRequest = async () => {
         });
 
         window.closeModal('withdrawModal');
-        alert("Withdrawal request submit ho gayi hai! Admin verify karke jald hi payout send kar dega.");
+        alert("Withdrawal request submit ho gayi hai!");
         document.getElementById('withdrawAmountInput').value = "";
         document.getElementById('withdrawUpiId').value = "";
     } catch (err) {
