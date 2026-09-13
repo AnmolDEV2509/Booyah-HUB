@@ -220,8 +220,24 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label>Map</label>
+                    <select id="newMap">
+                        <option value="Bermuda">Bermuda</option>
+                        <option value="Kalahari">Kalahari</option>
+                        <option value="Purgatory">Purgatory</option>
+                        <option value="Alpine">Alpine</option>
+                        <option value="Nexterra">Nexterra</option>
+                    </select>
+                </div>
+            </div>
+            <div class="edit-grid" style="margin-top:0;">
+                <div class="form-group">
                     <label>Total Slots</label>
                     <input type="number" id="newSlots" value="48">
+                </div>
+                <div class="form-group">
+                    <label>Per Kill (₹)</label>
+                    <input type="number" id="newPerKill" value="5">
                 </div>
             </div>
             <div class="edit-grid" style="margin-top:0;">
@@ -241,6 +257,10 @@
             <div class="form-group">
                 <label>Banner Image URL</label>
                 <input type="text" id="newBanner" placeholder="https://...">
+            </div>
+            <div class="form-group">
+                <label>Tournament Rules / Description</label>
+                <textarea id="newDescription" rows="3" placeholder="Enter tournament rules, payout structure, etc..."></textarea>
             </div>
             <button class="btn btn-primary" onclick="window.createMatch()">Publish Match</button>
         </div>
