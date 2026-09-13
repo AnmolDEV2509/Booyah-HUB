@@ -22,22 +22,26 @@ const auth = getAuth(app);
 
 const SUPER_ADMIN_EMAIL = "admin2509@gmail.com";
 
-// Fixed Admin Login Function
+// Helper to format ISO datetime-local string for input boxes
+function formatIsoDateTime(timestamp) {
+    if (!timestamp) return "";
+    const d = new Date(timestamp);
+    const pad = (n) => (n < 10 ? '0' + n : n);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Admin Login
 window.adminLogin = async () => {
     const emailEl = document.getElementById('adminAuthEmail');
     const passEl = document.getElementById('adminAuthPassword');
     const loginBtn = document.getElementById('adminLoginBtn');
 
-    if (!emailEl || !passEl) {
-        return alert("Error: Login fields HTML me nahi mile!");
-    }
+    if (!emailEl || !passEl) return alert("Error: Login fields HTML me nahi mile!");
 
     const email = emailEl.value.trim();
     const pass = passEl.value;
 
-    if (!email || !pass) {
-        return alert("Email aur Password dono fill karein!");
-    }
+    if (!email || !pass) return alert("Email aur Password dono fill karein!");
 
     let originalBtnText = "";
     if (loginBtn) {
@@ -80,7 +84,7 @@ window.adminLogout = async () => {
     location.reload();
 };
 
-// Auth Listener
+// Auth State Listener
 onAuthStateChanged(auth, async (user) => {
     const overlay = document.getElementById('authOverlay');
     if (user && user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
@@ -184,7 +188,7 @@ function renderUsersList(usersArray) {
                         <input type="number" id="win-bal-${user.id}" value="${winBal}">
                     </div>
                 </div>
-                <button class="btn btn-primary" style="padding:6px; font-size:11px;" onclick="window.saveUserWalletDirect('${user.id}')">
+                <button class="btn btn-primary" style="padding:6px; font-size:11px; margin-top:8px;" onclick="window.saveUserWalletDirect('${user.id}')">
                     <i class="fa-solid fa-floppy-disk"></i> Update Wallet
                 </button>
             </div>
@@ -208,9 +212,7 @@ window.saveUserWalletDirect = async (userId) => {
     const newDep = parseFloat(document.getElementById(`dep-bal-${userId}`).value);
     const newWin = parseFloat(document.getElementById(`win-bal-${userId}`).value);
 
-    if (isNaN(newDep) || isNaN(newWin)) {
-        return alert("Valid numeric amount enter karein!");
-    }
+    if (isNaN(newDep) || isNaN(newWin)) return alert("Valid numeric amount enter karein!");
 
     try {
         const userRef = doc(db, "users", userId);
@@ -266,17 +268,15 @@ function listenWithdrawalRequests() {
 }
 
 window.approveWithdrawal = async (requestId, userId, amount) => {
-    if (!confirm(`Confirm payout of ₹${amount} to player? (Make sure payment is done manually/gateway)`)) return;
+    if (!confirm(`Confirm payout of ₹${amount} to player?`)) return;
 
     try {
         await updateDoc(doc(db, "withdrawal_requests", requestId), {
             status: "APPROVED",
             approvedAt: serverTimestamp()
         });
-
         alert("✅ Withdrawal Request Approved!");
     } catch (e) {
-        console.error("Withdrawal approval error:", e);
         alert("Error approving withdrawal: " + e.message);
     }
 };
@@ -286,16 +286,14 @@ window.rejectWithdrawal = async (requestId, userId, amount) => {
 
     try {
         const userRef = doc(db, "users", userId);
-        await setDoc(userRef, {
-            winningBalance: increment(amount)
-        }, { merge: true });
+        await setDoc(userRef, { winningBalance: increment(amount) }, { merge: true });
 
-        await updateDoc(doc(doc(db, "withdrawal_requests", requestId)), {
+        await updateDoc(doc(db, "withdrawal_requests", requestId), {
             status: "REJECTED",
             rejectedAt: serverTimestamp()
         });
 
-        alert("❌ Withdrawal Rejected & Amount Refunded to User Winning Balance!");
+        alert("❌ Withdrawal Rejected & Amount Refunded!");
     } catch (e) {
         alert("Error rejecting withdrawal: " + e.message);
     }
@@ -333,7 +331,7 @@ function listenDepositRequests() {
         });
 
         if (!hasPending) {
-            listEl.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:10px;">No pending deposit requests. Sab clear hai!</div>`;
+            listEl.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:10px;">No pending deposit requests.</div>`;
         } else {
             listEl.innerHTML = pendingHtml;
         }
@@ -345,18 +343,15 @@ window.approveDeposit = async (requestId, userId, amount) => {
 
     try {
         const userRef = doc(db, "users", userId);
-        await setDoc(userRef, {
-            depositBalance: increment(amount)
-        }, { merge: true });
+        await setDoc(userRef, { depositBalance: increment(amount) }, { merge: true });
 
         await updateDoc(doc(db, "deposit_requests", requestId), {
             status: "APPROVED",
             approvedAt: serverTimestamp()
         });
 
-        alert("✅ Deposit Approved & User Wallet Updated Successfully!");
+        alert("✅ Deposit Approved & User Wallet Updated!");
     } catch (e) {
-        console.error("Deposit approval error:", e);
         alert("Error approving deposit: " + e.message);
     }
 };
@@ -375,6 +370,9 @@ window.rejectDeposit = async (requestId) => {
     }
 };
 
+// ==========================================
+// 4. SUB-ADMINS & ANNOUNCEMENTS
+// ==========================================
 window.addSubAdmin = async () => {
     const emailInput = document.getElementById('subAdminEmail');
     const email = emailInput.value.trim().toLowerCase();
@@ -478,6 +476,9 @@ window.deleteAnnouncement = async (id) => {
     }
 };
 
+// ==========================================
+// 5. TOURNAMENT MANAGEMENT (HOST & UPDATE)
+// ==========================================
 window.createMatch = async () => {
     const title = document.getElementById('newTitle').value.trim();
     const mode = document.getElementById('newMode').value;
@@ -534,21 +535,23 @@ function initTournamentsListener() {
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
             const id = docSnap.id;
+            const startTimeIso = formatIsoDateTime(data.startTime);
 
             container.innerHTML += `
                 <div class="tourney-item">
                     <div class="tourney-header">
                         <div>
-                            <strong style="font-size:15px;">${data.name}</strong>
+                            <strong style="font-size:15px; color:#fff;">${data.name}</strong>
                             <span style="font-size:11px; color:var(--accent-orange); margin-left:8px;">[${data.mode} | ${data.map || 'Bermuda'}]</span>
                         </div>
-                        <select id="status-${id}" onchange="window.updateStatus('${id}')" style="background:#000; color:#fff; border:1px solid var(--border-color); padding:4px 8px; border-radius:4px; font-size:11px;">
+                        <select id="status-${id}" onchange="window.updateStatus('${id}')" style="background:#000; color:#fff; border:1px solid var(--border-color); padding:4px 8px; border-radius:4px; font-size:11px; width:auto;">
                             <option value="UPCOMING" ${data.status === 'UPCOMING' ? 'selected' : ''}>UPCOMING</option>
                             <option value="LIVE" ${data.status === 'LIVE' ? 'selected' : ''}>LIVE</option>
                             <option value="COMPLETED" ${data.status === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
                         </select>
                     </div>
 
+                    <!-- ROOM CREDENTIALS (QUICK EDIT) -->
                     <div class="edit-grid">
                         <div class="form-group">
                             <label>Room ID</label>
@@ -558,28 +561,153 @@ function initTournamentsListener() {
                             <label>Room Password</label>
                             <input type="text" id="pass-${id}" value="${data.roomPass || ''}" placeholder="Enter Pass">
                         </div>
-                        <div class="form-group">
-                            <label>Prize Pool (₹)</label>
-                            <input type="number" id="prize-${id}" value="${data.prize || 0}">
-                        </div>
-                        <div class="form-group">
-                            <label>Entry Fee (₹)</label>
-                            <input type="number" id="entry-${id}" value="${data.entry || 0}">
-                        </div>
                     </div>
 
                     <div class="action-btns">
-                        <button class="btn btn-primary" onclick="window.saveMatchDetails('${id}')"><i class="fa-solid fa-floppy-disk"></i> Save Edits</button>
-                        <button class="btn btn-secondary" onclick="window.togglePlayers('${id}')"><i class="fa-solid fa-users"></i> View Players</button>
-                        <button class="btn btn-danger" onclick="window.deleteMatch('${id}')"><i class="fa-solid fa-trash"></i> Delete</button>
+                        <button class="btn btn-success" style="width:auto; padding:6px 12px;" onclick="window.saveRoomCredentials('${id}')"><i class="fa-solid fa-key"></i> Save Room ID/Pass</button>
+                        <button class="btn btn-primary" style="width:auto; padding:6px 12px;" onclick="window.toggleEditForm('${id}')"><i class="fa-solid fa-pen-to-square"></i> Edit Full Details</button>
+                        <button class="btn btn-secondary" style="width:auto; padding:6px 12px;" onclick="window.togglePlayers('${id}')"><i class="fa-solid fa-users"></i> View Players</button>
+                        <button class="btn btn-danger" style="width:auto; padding:6px 12px;" onclick="window.deleteMatch('${id}')"><i class="fa-solid fa-trash"></i> Delete</button>
                     </div>
 
+                    <!-- EXPANDABLE FULL EDIT FORM -->
+                    <div id="edit-form-box-${id}" class="full-edit-container">
+                        <h4 style="font-size:13px; color:var(--accent-orange); margin-bottom:10px;"><i class="fa-solid fa-sliders"></i> Modify Hosted Tournament Info</h4>
+                        
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" id="edit-title-${id}" value="${data.name || ''}">
+                        </div>
+
+                        <div class="edit-grid">
+                            <div class="form-group">
+                                <label>Mode</label>
+                                <select id="edit-mode-${id}">
+                                    <option value="SOLO" ${data.mode === 'SOLO' ? 'selected' : ''}>SOLO</option>
+                                    <option value="DUO" ${data.mode === 'DUO' ? 'selected' : ''}>DUO</option>
+                                    <option value="SQUAD" ${data.mode === 'SQUAD' ? 'selected' : ''}>SQUAD</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Map</label>
+                                <select id="edit-map-${id}">
+                                    <option value="Bermuda" ${data.map === 'Bermuda' ? 'selected' : ''}>Bermuda</option>
+                                    <option value="Kalahari" ${data.map === 'Kalahari' ? 'selected' : ''}>Kalahari</option>
+                                    <option value="Purgatory" ${data.map === 'Purgatory' ? 'selected' : ''}>Purgatory</option>
+                                    <option value="Alpine" ${data.map === 'Alpine' ? 'selected' : ''}>Alpine</option>
+                                    <option value="Nexterra" ${data.map === 'Nexterra' ? 'selected' : ''}>Nexterra</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="edit-grid">
+                            <div class="form-group">
+                                <label>Total Slots</label>
+                                <input type="number" id="edit-slots-${id}" value="${data.totalSlots || 48}">
+                            </div>
+                            <div class="form-group">
+                                <label>Per Kill (₹)</label>
+                                <input type="number" id="edit-perkill-${id}" value="${data.perKill || 0}">
+                            </div>
+                        </div>
+
+                        <div class="edit-grid">
+                            <div class="form-group">
+                                <label>Entry Fee (₹)</label>
+                                <input type="number" id="edit-entry-${id}" value="${data.entry || 0}">
+                            </div>
+                            <div class="form-group">
+                                <label>Prize Pool (₹)</label>
+                                <input type="number" id="edit-prize-${id}" value="${data.prize || 0}">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Start Time</label>
+                            <input type="datetime-local" id="edit-starttime-${id}" value="${startTimeIso}">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Banner URL</label>
+                            <input type="text" id="edit-banner-${id}" value="${data.banner || ''}">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Rules / Description</label>
+                            <textarea id="edit-desc-${id}" rows="3">${data.description || ''}</textarea>
+                        </div>
+
+                        <button class="btn btn-primary" style="margin-top:5px;" onclick="window.updateHostedMatch('${id}')"><i class="fa-solid fa-floppy-disk"></i> Update Hosted Match</button>
+                    </div>
+
+                    <!-- EXPANDABLE PLAYERS CONTAINER -->
                     <div id="players-box-${id}" class="players-container">Loading joined players...</div>
                 </div>
             `;
         });
     });
 }
+
+// TOGGLE FULL EDIT FORM
+window.toggleEditForm = (id) => {
+    const box = document.getElementById(`edit-form-box-${id}`);
+    if (box) {
+        box.style.display = (box.style.display === "block") ? "none" : "block";
+    }
+};
+
+// SAVE FULL TOURNAMENT UPDATES
+window.updateHostedMatch = async (id) => {
+    const title = document.getElementById(`edit-title-${id}`).value.trim();
+    const mode = document.getElementById(`edit-mode-${id}`).value;
+    const map = document.getElementById(`edit-map-${id}`).value;
+    const slots = parseInt(document.getElementById(`edit-slots-${id}`).value);
+    const perKill = parseInt(document.getElementById(`edit-perkill-${id}`).value) || 0;
+    const entry = parseInt(document.getElementById(`edit-entry-${id}`).value);
+    const prize = parseInt(document.getElementById(`edit-prize-${id}`).value);
+    const startTimeVal = document.getElementById(`edit-starttime-${id}`).value;
+    const banner = document.getElementById(`edit-banner-${id}`).value.trim();
+    const description = document.getElementById(`edit-desc-${id}`).value.trim();
+
+    if (!title || !startTimeVal) return alert("Title aur Start Time required hain!");
+
+    try {
+        await updateDoc(doc(db, "tournaments", id), {
+            name: title,
+            mode: mode,
+            map: map,
+            totalSlots: slots,
+            perKill: perKill,
+            entry: entry,
+            prize: prize,
+            startTime: new Date(startTimeVal).getTime(),
+            banner: banner,
+            description: description,
+            updatedAt: serverTimestamp()
+        });
+
+        alert("✅ Tournament details updated successfully!");
+        window.toggleEditForm(id);
+    } catch(e) {
+        alert("Failed to update tournament: " + e.message);
+    }
+};
+
+// QUICK ROOM ID/PASS UPDATE
+window.saveRoomCredentials = async (id) => {
+    const roomId = document.getElementById(`room-${id}`).value.trim();
+    const roomPass = document.getElementById(`pass-${id}`).value.trim();
+
+    try {
+        await updateDoc(doc(db, "tournaments", id), {
+            roomId: roomId, 
+            roomPass: roomPass
+        });
+        alert("✅ Room Credentials Saved!");
+    } catch(e) {
+        alert("Error updating room details: " + e.message);
+    }
+};
 
 // TOGGLE AND RENDER REGISTERED PLAYERS WITH KICK OPTION
 window.togglePlayers = async (tourneyId) => {
@@ -631,37 +759,16 @@ window.kickPlayer = async (regId, tourneyId, userEmail) => {
     if(!confirm(`Kya aap ${userEmail} ko is tournament se remove/kick karna chahte hain?`)) return;
 
     try {
-        // 1. Registration Record Delete karein
         await deleteDoc(doc(db, "registrations", regId));
-
-        // 2. Tournament Slots Count -1 karein
         await updateDoc(doc(db, "tournaments", tourneyId), {
             joinedSlots: increment(-1)
         });
 
         alert(`✅ Player ${userEmail} successfully kicked!`);
-        
-        // Refresh Player List UI
         window.togglePlayers(tourneyId); 
     } catch(e) {
         console.error("Error kicking player:", e);
         alert("Failed to kick player: " + e.message);
-    }
-};
-
-window.saveMatchDetails = async (id) => {
-    const roomId = document.getElementById(`room-${id}`).value.trim();
-    const roomPass = document.getElementById(`pass-${id}`).value.trim();
-    const prize = parseInt(document.getElementById(`prize-${id}`).value);
-    const entry = parseInt(document.getElementById(`entry-${id}`).value);
-
-    try {
-        await updateDoc(doc(db, "tournaments", id), {
-            roomId: roomId, roomPass: roomPass, prize: prize, entry: entry
-        });
-        alert("Match Updated Successfully!");
-    } catch(e) {
-        alert("Error updating match: " + e.message);
     }
 };
 
