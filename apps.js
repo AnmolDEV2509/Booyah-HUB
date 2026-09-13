@@ -96,10 +96,11 @@ function setupWalletListener(uid) {
     });
 }
 
-// Auth State Observer
+// Auth State Observer - Controls Initial Load Properly
 onAuthStateChanged(auth, async (user) => {
     currentUser = user;
-    fetchSystemPaymentInfo();
+    await fetchSystemPaymentInfo();
+    
     if (user) {
         setupWalletListener(user.uid);
         await fetchUserRegistrations();
@@ -108,7 +109,9 @@ onAuthStateChanged(auth, async (user) => {
         userJoinedMatches.clear();
         updateWalletUI(0, 0);
     }
-    window.renderCurrentPage();
+    
+    // Render Page & Bind Listeners After Auth Verification
+    await window.renderCurrentPage();
 });
 
 // Live Announcements Sync
@@ -165,7 +168,7 @@ function listenToTournaments() {
     });
 }
 
-// Window Global Functions
+// Global UI Navigation & Render Actions
 
 window.toggleNotif = () => {
     notifEnabled = !notifEnabled;
@@ -691,7 +694,6 @@ window.submitWithdrawalRequest = async () => {
     }
 };
 
-// UPDATED: Dynamic Multi-Slot Increment & Team Registration Logic
 window.confirmJoin = async () => {
     let playerCounts = 1;
     if (selectedMatchMode === 'DUO') playerCounts = 2;
@@ -725,7 +727,6 @@ window.confirmJoin = async () => {
             const totalSlots = Number(tourneyData.totalSlots) || 48;
             const currentJoined = Number(tourneyData.joinedSlots) || 0;
 
-            // Slot Overbooking Guard
             if (currentJoined + playerCounts > totalSlots) {
                 throw new Error(`Iss match me sirf ${totalSlots - currentJoined} slots bache hain! Aapki team (${playerCounts} players) fit nahi ho sakti.`);
             }
@@ -755,7 +756,6 @@ window.confirmJoin = async () => {
                 winningBalance: winning 
             });
 
-            // FIXED: Increment by actual team player count (1, 2, or 4)
             transaction.update(tourneyRef, { 
                 joinedSlots: increment(playerCounts) 
             });
@@ -833,6 +833,3 @@ window.showToast = (msg) => {
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
 };
-
-// Initial Render Setup
-window.renderCurrentPage();
