@@ -285,7 +285,6 @@ window.rejectWithdrawal = async (requestId, userId, amount) => {
     if (!confirm("Reject request aur player ka winning balance refund karein?")) return;
 
     try {
-        // Refund winning amount back to user's wallet
         const userRef = doc(db, "users", userId);
         await setDoc(userRef, {
             winningBalance: increment(amount)
@@ -575,6 +574,7 @@ function initTournamentsListener() {
     });
 }
 
+// TOGGLE AND RENDER REGISTERED PLAYERS WITH KICK OPTION
 window.togglePlayers = async (tourneyId) => {
     const box = document.getElementById(`players-box-${tourneyId}`);
     if (box.style.display === "block") {
@@ -594,21 +594,51 @@ window.togglePlayers = async (tourneyId) => {
             return;
         }
 
-        let html = `<div style="font-size:11px; font-weight:700; color:var(--accent-orange); margin-bottom:6px;">REGISTERED PLAYERS (${snap.size}):</div>`;
+        let html = `<div style="font-size:11px; font-weight:700; color:var(--accent-orange); margin-bottom:8px;">REGISTERED TEAMS/PLAYERS (${snap.size}):</div>`;
         snap.forEach((docSnap) => {
             const reg = docSnap.data();
-            html += `<div class="player-row">`;
-            html += `<strong>User:</strong> ${reg.userEmail || 'N/A'}<br>`;
+            const regId = docSnap.id;
+            
+            html += `<div class="player-row" style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px dashed rgba(255,255,255,0.1);">`;
+            html += `<div style="display:flex; justify-content:space-between; align-items:flex-start;">`;
+            html += `<div><strong>User Email:</strong> ${reg.userEmail || 'N/A'}</div>`;
+            html += `<button class="btn btn-danger" style="width:auto; padding:3px 8px; font-size:10px;" onclick="window.kickPlayer('${regId}', '${tourneyId}', '${reg.userEmail || 'User'}')"><i class="fa-solid fa-user-xmark"></i> Kick Player</button>`;
+            html += `</div>`;
+
             if(reg.players && Array.isArray(reg.players)) {
                 reg.players.forEach((p, idx) => {
-                    html += `&nbsp;&nbsp;• P${idx+1}: <strong>${p.ign}</strong> (UID: ${p.uid})<br>`;
+                    html += `<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">&nbsp;&nbsp;• Player ${idx+1}: <strong style="color:#fff;">${p.ign}</strong> (UID: ${p.uid})</div>`;
                 });
             }
             html += `</div>`;
         });
         box.innerHTML = html;
     } catch (err) {
+        console.error("Error fetching players: ", err);
         box.innerHTML = `<span style="font-size:11px; color:var(--accent-red);">Error loading players!</span>`;
+    }
+};
+
+// KICK/REMOVE PLAYER SYSTEM
+window.kickPlayer = async (regId, tourneyId, userEmail) => {
+    if(!confirm(`Kya aap ${userEmail} ko is tournament se remove/kick karna chahte hain?`)) return;
+
+    try {
+        // 1. Registration Record Delete karein
+        await deleteDoc(doc(db, "registrations", regId));
+
+        // 2. Tournament Slots Count -1 karein
+        await updateDoc(doc(db, "tournaments", tourneyId), {
+            joinedSlots: increment(-1)
+        });
+
+        alert(`✅ Player ${userEmail} successfully kicked!`);
+        
+        // Refresh Player List UI
+        window.togglePlayers(tourneyId); 
+    } catch(e) {
+        console.error("Error kicking player:", e);
+        alert("Failed to kick player: " + e.message);
     }
 };
 
