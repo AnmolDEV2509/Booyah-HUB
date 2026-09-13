@@ -3,251 +3,320 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booyah HUB | Super Admin Portal</title>
-    <!-- Google Fonts & FontAwesome -->
-    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>Booyah HUB - Admin Portal</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
         :root {
-            --bg-dark: #08090c;
-            --card-bg: #12151e;
-            --accent-red: #ff3336;
-            --accent-orange: #ff4500;
+            --bg-color: #0b0e14;
+            --card-bg: #151a23;
+            --accent-orange: #ff5722;
+            --accent-red: #e53935;
             --green-glow: #00e676;
             --text-main: #ffffff;
-            --text-muted: #8b929a;
-            --border-color: rgba(255, 255, 255, 0.1);
+            --text-muted: #9e9e9e;
+            --border-color: #232a36;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-        body { background-color: var(--bg-dark); color: var(--text-main); padding: 20px; max-width: 1200px; margin: 0 auto; }
-
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding-bottom: 20px; border-bottom: 1px solid var(--border-color); margin-bottom: 25px;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        .brand { font-family: 'Teko', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 1px; }
-        .brand span { color: var(--accent-orange); }
-
-        .admin-badge {
-            background: rgba(255, 215, 0, 0.15); color: #ffd700;
-            border: 1px solid #ffd700; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; text-transform: uppercase;
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px;
         }
 
-        /* Admin Auth Modal Overlay */
-        #authOverlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(8, 9, 12, 0.95); backdrop-filter: blur(8px);
-            display: flex; align-items: center; justify-content: center; z-index: 9999;
+        /* Auth Overlay */
+        .auth-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(11, 14, 20, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
         }
+
         .auth-card {
-            background: var(--card-bg); border: 1px solid var(--accent-orange);
-            padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            width: 100%;
+            max-width: 400px;
         }
 
-        .grid-container { display: grid; grid-template-columns: 350px 1fr; gap: 25px; }
-        @media (max-width: 900px) { .grid-container { grid-template-columns: 1fr; } }
-
-        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        .card-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; text-transform: uppercase; display: flex; align-items: center; gap: 10px; color: var(--accent-orange); }
-
-        .form-group { margin-bottom: 12px; text-align: left; }
-        .form-group label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; font-weight: 600; }
-        .form-group input, .form-group select {
-            width: 100%; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color);
-            padding: 10px; border-radius: 6px; color: #fff; font-size: 13px; outline: none;
+        /* Layout Grid */
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
         }
-        .form-group input:focus, .form-group select:focus { border-color: var(--accent-orange); }
 
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .panel-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .panel-card h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: var(--accent-orange);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            background: #0b0e14;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: 1px solid var(--accent-orange);
+        }
 
         .btn {
-            width: 100%; padding: 10px; border-radius: 6px; border: none; font-weight: 700;
-            font-size: 12px; text-transform: uppercase; cursor: pointer; transition: 0.2s;
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
         }
+
         .btn-primary { background: var(--accent-orange); color: #fff; }
-        .btn-primary:hover { background: #e03d00; }
-        .btn-success { background: var(--green-glow); color: #000; }
+        .btn-success { background: #2e7d32; color: #fff; }
         .btn-danger { background: var(--accent-red); color: #fff; }
-        .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid var(--border-color); }
+        .btn-secondary { background: #37474f; color: #fff; }
 
-        .deposit-item, .sub-admin-item, .announcement-item, .user-wallet-card {
-            display: flex; justify-content: space-between; align-items: center;
-            background: rgba(0,0,0,0.3); border: 1px solid var(--border-color);
-            padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 12px;
+        /* Dynamic Item Styles */
+        .tourney-item, .deposit-item, .user-wallet-card, .announcement-item, .sub-admin-item {
+            background: #0b0e14;
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
         }
 
-        .user-wallet-card { flex-direction: column; align-items: stretch; gap: 10px; }
-        .user-wallet-header { display: flex; justify-content: space-between; align-items: center; }
+        .tourney-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
 
-        .tourney-item { background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        .tourney-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .edit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 6px; }
-        .action-btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-        .action-btns .btn { flex: 1; min-width: 120px; }
+        .edit-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 10px;
+        }
 
-        .players-container { margin-top: 12px; background: rgba(0,0,0,0.5); border: 1px dashed var(--accent-orange); border-radius: 6px; padding: 10px; display: none; }
-        .player-row { font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .player-row:last-child { border-bottom: none; }
+        .action-btns {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        /* Players view container */
+        .players-container {
+            display: none;
+            background: #11151c;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .deposit-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .sub-admin-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .announcement-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
 
-    <!-- AUTH OVERLAY FOR DIRECT ADMIN LOGIN -->
-    <div id="authOverlay">
+    <!-- AUTH OVERLAY -->
+    <div id="authOverlay" class="auth-overlay">
         <div class="auth-card">
-            <h2 style="font-family:'Teko'; font-size:28px; color:var(--accent-orange); margin-bottom:10px;">SUPER ADMIN LOGIN</h2>
+            <h3><i class="fa-solid fa-lock"></i> Super Admin Login</h3>
             <div class="form-group">
                 <label>Admin Email</label>
-                <input type="email" id="adminAuthEmail" value="admin2509@gmail.com" placeholder="admin@gmail.com">
+                <input type="email" id="adminAuthEmail" placeholder="admin@domain.com">
             </div>
             <div class="form-group">
-                <label>Admin Password</label>
-                <input type="password" id="adminAuthPassword" placeholder="••••••••" onkeydown="if(event.key === 'Enter') window.adminLogin()">
+                <label>Password</label>
+                <input type="password" id="adminAuthPassword" placeholder="••••••••">
             </div>
-            <button class="btn btn-primary" id="adminLoginBtn" onclick="window.adminLogin()"><i class="fa-solid fa-lock"></i> Authenticate Dashboard</button>
+            <button class="btn btn-primary" id="adminLoginBtn" onclick="window.adminLogin()">Login Panel</button>
         </div>
     </div>
 
-    <header>
-        <div class="brand">BOOYAH <span>HUB</span> SUPER ADMIN</div>
-        <div style="display:flex; gap:10px; align-items:center;">
-            <div class="admin-badge" id="roleBadge"><i class="fa-solid fa-crown"></i> Super Admin Portal</div>
-            <button class="btn btn-danger" style="width:auto; padding:6px 12px;" onclick="window.adminLogout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
-        </div>
-    </header>
+    <!-- MAIN ADMIN PANEL HEADER -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2><i class="fa-solid fa-shield-halved"></i> Booyah HUB Dashboard</h2>
+        <button class="btn btn-danger" style="width: auto; padding: 6px 16px;" onclick="window.adminLogout()">Logout</button>
+    </div>
 
-    <div class="grid-container">
-        <!-- Controls & Configurations -->
-        <div>
-            <!-- Payment Settings -->
-            <div class="card">
-                <div class="card-title"><i class="fa-solid fa-wallet"></i> UPI Payment Setup</div>
-                <div class="form-group">
-                    <label>Admin UPI ID</label>
-                    <input type="text" id="adminUpiId" placeholder="e.g. yourupiid@okaxis">
-                </div>
-                <div class="form-group">
-                    <label>QR Code Image URL (Optional)</label>
-                    <input type="text" id="adminQrUrl" placeholder="https://image-link.com/qr.jpg">
-                </div>
-                <button class="btn btn-primary" onclick="window.savePaymentSettings()"><i class="fa-solid fa-floppy-disk"></i> Save UPI Details</button>
+    <div class="admin-grid">
+
+        <!-- 1. CREATE TOURNAMENT -->
+        <div class="panel-card">
+            <h3><i class="fa-solid fa-trophy"></i> Host New Tournament</h3>
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="newTitle" placeholder="e.g. Daily Solo Battle">
             </div>
-
-            <!-- Manage Sub-Admins -->
-            <div class="card">
-                <div class="card-title"><i class="fa-solid fa-user-shield"></i> Sub-Admins Control</div>
+            <div class="edit-grid" style="margin-top:0;">
                 <div class="form-group">
-                    <label>Sub-Admin Email</label>
-                    <input type="email" id="subAdminEmail" placeholder="subadmin@gmail.com">
+                    <label>Mode</label>
+                    <select id="newMode">
+                        <option value="SOLO">SOLO</option>
+                        <option value="DUO">DUO</option>
+                        <option value="SQUAD">SQUAD</option>
+                    </select>
                 </div>
-                <button class="btn btn-primary" onclick="window.addSubAdmin()"><i class="fa-solid fa-user-plus"></i> Grant Sub-Admin Access</button>
-                <div style="margin-top: 15px;">
-                    <label style="display:block; font-size:11px; color:var(--text-muted); margin-bottom:8px; font-weight:600;">ACTIVE SUB-ADMINS</label>
-                    <div id="subAdminList">Loading sub-admins...</div>
+                <div class="form-group">
+                    <label>Total Slots</label>
+                    <input type="number" id="newSlots" value="48">
                 </div>
             </div>
-
-            <!-- Post Announcement -->
-            <div class="card">
-                <div class="card-title"><i class="fa-solid fa-bullhorn"></i> Post Announcement</div>
+            <div class="edit-grid" style="margin-top:0;">
                 <div class="form-group">
-                    <label>Notice / Ticker Text</label>
-                    <input type="text" id="announcementText" placeholder="e.g. 🔥 Room ID 15 mins pehle milega!">
+                    <label>Entry Fee (₹)</label>
+                    <input type="number" id="newEntry" value="10">
                 </div>
-                <button class="btn btn-primary" onclick="window.postAnnouncement()"><i class="fa-solid fa-paper-plane"></i> Add Announcement</button>
+                <div class="form-group">
+                    <label>Prize Pool (₹)</label>
+                    <input type="number" id="newPrize" value="400">
+                </div>
             </div>
-
-            <!-- Host Tournament Form -->
-            <div class="card">
-                <div class="card-title"><i class="fa-solid fa-plus-circle"></i> Host New Tournament</div>
-                
-                <div class="form-group">
-                    <label>Match Title</label>
-                    <input type="text" id="newTitle" placeholder="e.g. Daily Booyah Battle #102">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Game Mode</label>
-                        <select id="newMode">
-                            <option value="SOLO">SOLO</option>
-                            <option value="DUO">DUO</option>
-                            <option value="SQUAD">SQUAD</option>
-                            <option value="CS">Clash Squad</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Total Slots</label>
-                        <input type="number" id="newSlots" value="48">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Entry Fee (₹)</label>
-                        <input type="number" id="newEntry" value="20">
-                    </div>
-                    <div class="form-group">
-                        <label>Prize Pool (₹)</label>
-                        <input type="number" id="newPrize" value="500">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Match Start Time</label>
-                    <input type="datetime-local" id="newStartTime">
-                </div>
-
-                <div class="form-group">
-                    <label>Banner Image URL</label>
-                    <input type="text" id="newBanner" placeholder="https://image-link.com/banner.jpg">
-                </div>
-
-                <button class="btn btn-primary" onclick="window.createMatch()"><i class="fa-solid fa-bolt"></i> Publish Tournament</button>
+            <div class="form-group">
+                <label>Start Time</label>
+                <input type="datetime-local" id="newStartTime">
             </div>
+            <div class="form-group">
+                <label>Banner Image URL</label>
+                <input type="text" id="newBanner" placeholder="https://...">
+            </div>
+            <button class="btn btn-primary" onclick="window.createMatch()">Publish Match</button>
         </div>
 
-        <!-- Right Column: Live Data Feeds & Management -->
-        <div>
-            <!-- ALL USERS WALLET MANAGER -->
-            <div class="card">
-                <div class="card-title"><i class="fa-solid fa-users-gear"></i> User Wallets Management</div>
-                <div class="form-group">
-                    <input type="text" id="userWalletSearch" placeholder="Search by email or User ID..." onkeyup="window.filterUsersList()">
-                </div>
-                <div id="adminUsersWalletList">Loading users list...</div>
+        <!-- 2. PAYMENT & BANKING SETTINGS -->
+        <div class="panel-card">
+            <h3><i class="fa-solid fa-qrcode"></i> Payment QR & UPI</h3>
+            <div class="form-group">
+                <label>UPI ID</label>
+                <input type="text" id="adminUpiId" placeholder="example@upi">
             </div>
+            <div class="form-group">
+                <label>QR Code Image Link</label>
+                <input type="text" id="adminQrUrl" placeholder="https://...">
+            </div>
+            <button class="btn btn-primary" onclick="window.savePaymentSettings()">Save Banking Details</button>
+        </div>
 
-            <!-- Pending Withdrawal Requests -->
-            <div class="card">
-                <div class="card-title"><i class="fa-solid fa-hand-holding-dollar"></i> Pending Withdrawal Requests</div>
-                <div id="adminWithdrawalRequests">Checking pending withdrawals...</div>
+        <!-- 3. SUB-ADMIN MANAGEMENT -->
+        <div class="panel-card">
+            <h3><i class="fa-solid fa-user-gear"></i> Manage Sub-Admins</h3>
+            <div class="form-group">
+                <label>Sub-Admin Email</label>
+                <input type="email" id="subAdminEmail" placeholder="subadmin@gmail.com">
             </div>
+            <button class="btn btn-primary" onclick="window.addSubAdmin()" style="margin-bottom: 12px;">Add Sub-Admin</button>
+            <div id="subAdminList"></div>
+        </div>
 
-            <!-- Pending UPI Deposit Requests -->
-            <div class="card">
-                <div class="card-title"><i class="fa-solid fa-money-bill-transfer"></i> Pending UPI Deposit Requests</div>
-                <div id="adminDepositRequests">Checking pending requests...</div>
+        <!-- 4. ANNOUNCEMENTS CONTROL -->
+        <div class="panel-card">
+            <h3><i class="fa-solid fa-bullhorn"></i> Announcement Banner</h3>
+            <div class="form-group">
+                <label>Announcement Message</label>
+                <textarea id="announcementText" rows="2" placeholder="Write updates here..."></textarea>
             </div>
+            <button class="btn btn-primary" onclick="window.postAnnouncement()" style="margin-bottom: 12px;">Post Text</button>
+            <div id="announcementsList"></div>
+        </div>
 
-            <!-- Active Announcements -->
-            <div class="card">
-                <div class="card-title"><i class="fa-solid fa-list-ul"></i> Active Announcements</div>
-                <div id="announcementsList">Fetching active notices...</div>
-            </div>
+    </div>
 
-            <!-- Active Tournaments Management -->
-            <div class="card">
-                <div class="card-title"><i class="fa-solid fa-list-check"></i> Manage Tournaments & Room Details</div>
-                <div id="adminTournamentsList">Syncing with Firestore...</div>
-            </div>
+    <!-- FULL WIDTH PANELS -->
+    <div style="margin-top: 20px;" class="admin-grid">
+
+        <!-- DEPOSIT REQUESTS -->
+        <div class="panel-card">
+            <h3><i class="fa-solid fa-money-bill-transfer"></i> Deposit Requests (UTR)</h3>
+            <div id="adminDepositRequests">Loading deposits...</div>
+        </div>
+
+        <!-- WITHDRAWAL REQUESTS -->
+        <div class="panel-card">
+            <h3><i class="fa-solid fa-wallet"></i> Withdrawal Requests</h3>
+            <div id="adminWithdrawalRequests">Loading withdrawals...</div>
+        </div>
+
+    </div>
+
+    <!-- TOURNAMENTS LIST CONTROL -->
+    <div style="margin-top: 20px;" class="panel-card">
+        <h3><i class="fa-solid fa-list-check"></i> Manage Active Tournaments</h3>
+        <div id="adminTournamentsList">Loading tournaments...</div>
+    </div>
+
+    <!-- USER WALLET EDIT CONTROL -->
+    <div style="margin-top: 20px;" class="panel-card">
+        <h3><i class="fa-solid fa-users-gear"></i> Direct User Wallet Control</h3>
+        <div class="form-group" style="max-width: 400px; margin-bottom: 15px;">
+            <input type="text" id="userWalletSearch" placeholder="Search User by Email or UID..." onkeyup="window.filterUsersList()">
+        </div>
+        <div id="adminUsersWalletList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+            Loading users...
         </div>
     </div>
 
-    <!-- SCRIPT LINK -->
-    <script type="module" src="./admin.js"></script>
+    <script type="module" src="admin.js"></script>
 </body>
 </html>
