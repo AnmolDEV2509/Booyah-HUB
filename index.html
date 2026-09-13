@@ -211,6 +211,13 @@
             overflow: hidden;
             margin-bottom: 16px;
             border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 69, 0, 0.4);
+            transform: translateY(-2px);
         }
 
         .card-banner {
@@ -245,15 +252,47 @@
         .badge-live { background: rgba(255, 69, 0, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
         .badge-completed { background: rgba(255, 255, 255, 0.1); color: var(--text-muted); border: 1px solid var(--border-color); }
 
-        /* Timer Bar */
-        .timer-bar {
-            font-size: 11px;
-            color: var(--accent-orange);
-            font-weight: 600;
-            margin-bottom: 12px;
+        /* ADVANCED TIMER HUD DISPLAY */
+        .countdown-hud {
             display: flex;
             align-items: center;
             gap: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            padding: 6px 10px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            width: fit-content;
+        }
+
+        .countdown-hud i { color: var(--accent-orange); font-size: 12px; }
+
+        .time-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .time-num {
+            font-family: 'Teko', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-orange);
+            line-height: 1;
+        }
+
+        .time-label {
+            font-size: 8px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .time-sep {
+            font-family: 'Teko', sans-serif;
+            font-size: 16px;
+            color: var(--accent-orange);
+            font-weight: 700;
+            margin-top: -4px;
         }
 
         .card-details {
@@ -305,11 +344,69 @@
             cursor: pointer;
         }
 
-        /* Slot Tracker */
+        /* ADVANCED SLOT TRACKER WITH SEATS GRID & FIRE ANIMATION */
         .slot-tracker { margin-bottom: 14px; }
         .slot-info { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
         .progress-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, #ff4500, #ff7700); }
+        
+        .progress-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, #ff4500, #ff7700); 
+            transition: width 0.5s ease-in-out; 
+            position: relative;
+        }
+
+        .progress-fill.hot::after {
+            content: '';
+            position: absolute;
+            right: 0; top: 0; bottom: 0; width: 10px;
+            background: #fff;
+            box-shadow: 0 0 8px #ff4500, 0 0 12px #ff4500;
+        }
+
+        .badge-almost-full {
+            font-size: 9px;
+            color: #ff3333;
+            font-weight: 700;
+            animation: blink 1s infinite alternate;
+        }
+
+        @keyframes blink {
+            from { opacity: 1; }
+            to { opacity: 0.4; }
+        }
+
+        /* Visual Seat Grid inside Popup */
+        .seats-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 6px;
+            margin: 12px 0;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 8px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .seat-dot {
+            height: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        .seat-dot.filled {
+            background: rgba(255, 69, 0, 0.2);
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+            font-weight: 700;
+        }
 
         /* Buttons */
         .btn-primary {
@@ -389,7 +486,7 @@
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
             z-index: 2000; display: none; justify-content: center; align-items: flex-end;
         }
 
@@ -501,6 +598,30 @@
 
         /* Leaderboard Lists */
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+
+        /* ADVANCED DETAIL MODAL STYLES */
+        .detail-banner {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .payout-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-top: 8px;
+        }
+
+        .payout-table th, .payout-table td {
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .payout-table th { background: rgba(255,69,0,0.15); color: var(--accent-orange); }
     </style>
 </head>
 <body>
@@ -551,6 +672,55 @@
         </div>
     </nav>
 
+    <!-- ADVANCED MATCH DETAILS POPUP MODAL -->
+    <div id="detailsModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3 id="detTitle">Match Details</h3>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('detailsModal')"></i>
+            </div>
+            
+            <img id="detBanner" src="" class="detail-banner" alt="Match Banner">
+            
+            <div class="card-details" style="margin-bottom:12px;">
+                <div class="detail-item"><span>Prize Pool</span><strong id="detPrize">₹0</strong></div>
+                <div class="detail-item"><span>Entry Fee</span><strong id="detEntry">₹0</strong></div>
+                <div class="detail-item"><span>Map / Mode</span><strong id="detMode">BERMUDA</strong></div>
+            </div>
+
+            <!-- Visual Slot Grid -->
+            <div style="font-size:11px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+                <span><i class="fa-solid fa-users"></i> Slot Occupancy Grid</span>
+                <span id="detSlotText" style="color:#fff; font-weight:700;">0/48 Filled</span>
+            </div>
+            <div id="seatsGrid" class="seats-grid"></div>
+
+            <!-- Prize Breakdown Table -->
+            <div style="font-size:11px; font-weight:700; color:var(--accent-orange); margin-top:10px;">🏆 Prize Pool Breakdown</div>
+            <table class="payout-table">
+                <thead>
+                    <tr><th>Rank</th><th>Prize</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>#1 Winner (Booyah)</td><td id="payout1">50% Prize</td></tr>
+                    <tr><td>#2 Runner Up</td><td id="payout2">30% Prize</td></tr>
+                    <tr><td>Per Kill Bonus</td><td id="payoutKill">₹10 / Kill</td></tr>
+                </tbody>
+            </table>
+
+            <details class="rules-box" style="margin-top:12px;" open>
+                <summary><i class="fa-solid fa-shield-halved"></i> Match Rules & Guidelines</summary>
+                <ul>
+                    <li>Emulators prohibited (Mobile Devices Only).</li>
+                    <li>Ensure your In-Game Name matches registration details.</li>
+                    <li>Room ID & Password will be provided 15 mins prior to start.</li>
+                </ul>
+            </details>
+
+            <button id="detJoinBtn" class="btn-primary" style="margin-top:10px;">Register Now</button>
+        </div>
+    </div>
+
     <!-- Join Match Dynamic Modal -->
     <div id="joinModal" class="modal-overlay">
         <div class="modal-sheet">
@@ -562,7 +732,6 @@
                 <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('joinModal')"></i>
             </div>
 
-            <!-- Rules Collapsible Accordion -->
             <details class="rules-box">
                 <summary><i class="fa-solid fa-shield-halved"></i> Read Tournament Rules & Terms</summary>
                 <ul>
@@ -572,7 +741,6 @@
                 </ul>
             </details>
             
-            <!-- Dynamic Form Injection Area -->
             <div id="dynamicFormContainer"></div>
 
             <button class="btn-primary" onclick="window.confirmJoin()" style="margin-top:10px;">Confirm Registration</button>
@@ -648,7 +816,7 @@
         let notifEnabled = true;
         let activePage = 'Home';
 
-        // Firebase Auth State Listener
+        // Auth Listener
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             if (user) {
@@ -661,7 +829,7 @@
             }
         });
 
-        // Live Real-Time Announcements Listener from Firestore
+        // Announcements Listener
         function listenToAnnouncements() {
             onSnapshot(collection(db, "announcements"), (snapshot) => {
                 const tickerContent = document.getElementById('tickerContent');
@@ -682,7 +850,7 @@
             });
         }
 
-        // Fetch user registration history from Firestore
+        // Fetch User Registrations
         async function fetchUserRegistrations() {
             if(!currentUser) return;
             try {
@@ -805,7 +973,6 @@
             }
         };
 
-        // Render Auth UI Screen
         window.renderAuthScreen = (container) => {
             container.innerHTML = `
                 <div class="section-title"><i class="fa-solid fa-lock"></i> User Authentication</div>
@@ -828,7 +995,6 @@
             `;
         };
 
-        // Auth Logic Functions
         window.handleGoogleLogin = async () => {
             try {
                 await signInWithPopup(auth, googleProvider);
@@ -910,6 +1076,7 @@
                 const percent = Math.round((joined / total) * 100);
                 const status = data.status || 'UPCOMING';
                 const banner = data.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=600&auto=format&fit=crop';
+                const isAlmostFull = (total - joined <= 5) && (joined < total);
 
                 let statusBadgeClass = 'badge-upcoming';
                 if(status === 'LIVE') statusBadgeClass = 'badge-live';
@@ -921,11 +1088,11 @@
                         <div class="room-box">
                             <div class="room-row">
                                 <span>Room ID: <strong style="color:var(--green-glow);">${data.roomId}</strong></span>
-                                <button class="copy-btn" onclick="window.copyToClipboard('${data.roomId}', 'Room ID')"><i class="fa-regular fa-copy"></i> Copy</button>
+                                <button class="copy-btn" onclick="event.stopPropagation(); window.copyToClipboard('${data.roomId}', 'Room ID')"><i class="fa-regular fa-copy"></i> Copy</button>
                             </div>
                             <div class="room-row">
                                 <span>Password: <strong style="color:var(--green-glow);">${data.roomPass || 'N/A'}</strong></span>
-                                <button class="copy-btn" onclick="window.copyToClipboard('${data.roomPass || ''}', 'Password')"><i class="fa-regular fa-copy"></i> Copy</button>
+                                <button class="copy-btn" onclick="event.stopPropagation(); window.copyToClipboard('${data.roomPass || ''}', 'Password')"><i class="fa-regular fa-copy"></i> Copy</button>
                             </div>
                         </div>
                     `;
@@ -934,7 +1101,7 @@
                 let actionBtnHTML = '';
                 if(data.isJoined) {
                     if(status === 'LIVE' || status === 'COMPLETED') {
-                        actionBtnHTML = `<button class="btn-primary btn-success" onclick="window.openResultModal('${data.id}', '${data.roomId || ''}')"><i class="fa-solid fa-trophy"></i> Upload Result / Screenshot</button>`;
+                        actionBtnHTML = `<button class="btn-primary btn-success" onclick="event.stopPropagation(); window.openResultModal('${data.id}', '${data.roomId || ''}')"><i class="fa-solid fa-trophy"></i> Upload Result / Screenshot</button>`;
                     } else {
                         actionBtnHTML = `<button class="btn-primary" style="background:#222; border:1px solid var(--green-glow); color:var(--green-glow);" disabled><i class="fa-solid fa-circle-check"></i> Registered</button>`;
                     }
@@ -943,11 +1110,11 @@
                 } else if(joined >= total) {
                     actionBtnHTML = `<button class="btn-primary" disabled style="opacity:0.5">Match Full</button>`;
                 } else {
-                    actionBtnHTML = `<button class="btn-primary" onclick="window.openModal('${data.id}', '${data.name}', '${data.mode}')">Join Match</button>`;
+                    actionBtnHTML = `<button class="btn-primary" onclick="event.stopPropagation(); window.openModal('${data.id}', '${data.name}', '${data.mode}')">Join Match</button>`;
                 }
 
                 list.innerHTML += `
-                    <div class="card">
+                    <div class="card" onclick="window.openDetailsModal('${data.id}')">
                         <img src="${banner}" class="card-banner" alt="Match Banner">
                         <div class="card-body">
                             <div class="card-header">
@@ -955,8 +1122,14 @@
                                 <span class="badge-status ${statusBadgeClass}">${status}</span>
                             </div>
                             
-                            <div class="timer-bar">
-                                <i class="fa-regular fa-clock"></i> <span id="timer-${data.id}">Calculating...</span>
+                            <!-- ADVANCED HUD COUNTDOWN DISPLAY -->
+                            <div class="countdown-hud">
+                                <i class="fa-solid fa-stopwatch"></i>
+                                <div class="time-box"><span class="time-num" id="cd-h-${data.id}">00</span><span class="time-label">HRS</span></div>
+                                <span class="time-sep">:</span>
+                                <div class="time-box"><span class="time-num" id="cd-m-${data.id}">00</span><span class="time-label">MIN</span></div>
+                                <span class="time-sep">:</span>
+                                <div class="time-box"><span class="time-num" id="cd-s-${data.id}">00</span><span class="time-label">SEC</span></div>
                             </div>
 
                             <div class="card-details">
@@ -967,13 +1140,14 @@
 
                             ${roomBoxHTML}
 
+                            <!-- ADVANCED SLOT TRACKER WITH ALMOST FULL BLINK -->
                             <div class="slot-tracker">
                                 <div class="slot-info">
-                                    <span>Slots Filled</span>
+                                    <span>Slots Filled ${isAlmostFull ? '<span class="badge-almost-full">🔥 ALMOST FULL!</span>' : ''}</span>
                                     <span>${joined}/${total}</span>
                                 </div>
                                 <div class="progress-bg">
-                                    <div class="progress-fill" style="width: ${percent}%;"></div>
+                                    <div class="progress-fill ${percent > 75 ? 'hot' : ''}" style="width: ${percent}%;"></div>
                                 </div>
                             </div>
 
@@ -984,30 +1158,77 @@
 
                 if(data.startTime) {
                     const timeStamp = data.startTime.seconds ? data.startTime.seconds * 1000 : data.startTime;
-                    window.startTimer(data.id, timeStamp);
+                    window.startAdvancedTimer(data.id, timeStamp);
                 }
             });
         };
 
-        window.startTimer = (id, targetTime) => {
+        // ADVANCED COUNTER (Hours, Mins, Secs HUD Layout)
+        window.startAdvancedTimer = (id, targetTime) => {
             const interval = setInterval(() => {
-                const timerEl = document.getElementById(`timer-${id}`);
-                if(!timerEl) {
+                const elH = document.getElementById(`cd-h-${id}`);
+                const elM = document.getElementById(`cd-m-${id}`);
+                const elS = document.getElementById(`cd-s-${id}`);
+
+                if(!elH || !elM || !elS) {
                     clearInterval(interval);
                     return;
                 }
 
                 const diff = targetTime - Date.now();
                 if(diff <= 0) {
-                    timerEl.innerText = "Match Live!";
-                    timerEl.style.color = "var(--green-glow)";
+                    elH.innerText = "00";
+                    elM.innerText = "00";
+                    elS.innerText = "00";
                     clearInterval(interval);
                 } else {
+                    const hrs = Math.floor(diff / (1000 * 60 * 60));
                     const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                     const secs = Math.floor((diff % (1000 * 60)) / 1000);
-                    timerEl.innerText = `Starts in: ${mins}m ${secs}s`;
+
+                    elH.innerText = hrs.toString().padStart(2, '0');
+                    elM.innerText = mins.toString().padStart(2, '0');
+                    elS.innerText = secs.toString().padStart(2, '0');
                 }
             }, 1000);
+        };
+
+        // ADVANCED MATCH DETAILS POPUP WITH VISUAL SEAT GRID
+        window.openDetailsModal = (matchId) => {
+            const data = tournamentsData.find(t => t.id === matchId);
+            if(!data) return;
+
+            document.getElementById('detTitle').innerText = data.name;
+            document.getElementById('detBanner').src = data.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=600&auto=format&fit=crop';
+            document.getElementById('detPrize').innerText = `₹${data.prize}`;
+            document.getElementById('detEntry').innerText = `₹${data.entry}`;
+            document.getElementById('detMode').innerText = `${data.mode} | BERMUDA`;
+
+            const total = data.totalSlots || 48;
+            const joined = data.joinedSlots || 0;
+            document.getElementById('detSlotText').innerText = `${joined}/${total} Seats Filled`;
+
+            // Dynamic Seat Dot Grid Generation
+            const grid = document.getElementById('seatsGrid');
+            grid.innerHTML = "";
+            for(let i = 1; i <= total; i++) {
+                const isFilled = i <= joined;
+                grid.innerHTML += `<div class="seat-dot ${isFilled ? 'filled' : ''}">${i}</div>`;
+            }
+
+            // Calculate Dynamic Prize Breakdown Table
+            const prizeNum = parseInt(data.prize) || 0;
+            document.getElementById('payout1').innerText = `₹${Math.round(prizeNum * 0.5)}`;
+            document.getElementById('payout2').innerText = `₹${Math.round(prizeNum * 0.25)}`;
+            document.getElementById('payoutKill').innerText = `₹${data.perKill || 10} / Kill`;
+
+            const btn = document.getElementById('detJoinBtn');
+            btn.onclick = () => {
+                window.closeModal('detailsModal');
+                window.openModal(data.id, data.name, data.mode);
+            };
+
+            document.getElementById('detailsModal').classList.add('active');
         };
 
         window.openModal = (matchId, name, mode) => {
@@ -1073,7 +1294,6 @@
             }
 
             try {
-                // Save registration in Firestore
                 await addDoc(collection(db, "registrations"), {
                     tournamentId: currentMatchToJoin,
                     userId: currentUser.uid,
@@ -1082,7 +1302,6 @@
                     joinedAt: serverTimestamp()
                 });
 
-                // Increment joined slots count
                 await updateDoc(doc(db, "tournaments", currentMatchToJoin), {
                     joinedSlots: increment(1)
                 });
