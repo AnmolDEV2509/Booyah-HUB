@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booyah HUB | Pro Esports Arena</title>
+
+    <!-- FAVICON LOGO SETUP -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #0b0c10;
+            --card-bg: #151821;
+            --accent-orange: #ff4500;
+            --accent-glow: rgba(255, 69, 0, 0.4);
+            --green-glow: #00e676;
+            --text-main: #ffffff;
+            --text-muted: #9aa0a6;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --nav-bg: #10121a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            padding-bottom: 90px;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(16, 18, 26, 0.9);
+            backdrop-filter: blur(12px);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand-logo {
+            font-family: 'Teko', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            text-transform: uppercase;
+        }
+
+        .brand-logo span {
+            color: var(--accent-orange);
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .notif-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--accent-orange);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+
+        .user-badge i { color: var(--accent-orange); }
+
+        /* Notice Ticker */
+        .ticker-wrap {
+            background: rgba(255, 69, 0, 0.1);
+            border-bottom: 1px solid rgba(255, 69, 0, 0.2);
+            padding: 6px 10px;
+            font-size: 12px;
+            color: var(--accent-orange);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+        }
+
+        .ticker-text {
+            white-space: nowrap;
+            animation: marquee 18s linear infinite;
+        }
+
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* Main Container */
+        .content {
+            padding: 15px 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Search & Filters */
+        .search-box {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .search-box input {
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 12px 16px 12px 40px;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+            scrollbar-width: none;
+        }
+
+        .filter-chips::-webkit-scrollbar { display: none; }
+
+        .chip {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .chip.active {
+            background: var(--accent-orange);
+            color: #fff;
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .status-chips {
+            margin-bottom: 15px;
+        }
+
+        .status-chip {
+            background: rgba(255,255,255,0.04);
+            border-radius: 6px;
+        }
+
+        /* Section Title */
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title i { color: var(--accent-orange); }
+
+        /* Tournament Card Design */
+        .card {
+            background: var(--card-bg);
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 69, 0, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .card-banner {
+            width: 100%;
+            height: 110px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .card-body {
+            padding: 16px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .card-title { font-size: 16px; font-weight: 600; }
+
+        .badge-status {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-upcoming { background: rgba(0, 230, 118, 0.15); color: var(--green-glow); border: 1px solid var(--green-glow); }
+        .badge-live { background: rgba(255, 69, 0, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
+        .badge-completed { background: rgba(255, 255, 255, 0.1); color: var(--text-muted); border: 1px solid var(--border-color); }
+
+        /* ADVANCED TIMER HUD DISPLAY */
+        .countdown-hud {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            padding: 6px 10px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            width: fit-content;
+        }
+
+        .countdown-hud i { color: var(--accent-orange); font-size: 12px; }
+
+        .time-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .time-num {
+            font-family: 'Teko', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-orange);
+            line-height: 1;
+        }
+
+        .time-label {
+            font-size: 8px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .time-sep {
+            font-family: 'Teko', sans-serif;
+            font-size: 16px;
+            color: var(--accent-orange);
+            font-weight: 700;
+            margin-top: -4px;
+        }
+
+        .card-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            background: rgba(0,0,0,0.25);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .detail-item span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .detail-item strong { color: #fff; font-size: 13px; }
+
+        /* Room Box Inside Joined Cards */
+        .room-box {
+            background: rgba(0, 230, 118, 0.08);
+            border: 1px dashed var(--green-glow);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 12px;
+        }
+
+        .room-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .room-row:last-child { margin-bottom: 0; }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        /* ADVANCED SLOT TRACKER WITH SEATS GRID & FIRE ANIMATION */
+        .slot-tracker { margin-bottom: 14px; }
+        .slot-info { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
+        .progress-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+        
+        .progress-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, #ff4500, #ff7700); 
+            transition: width 0.5s ease-in-out; 
+            position: relative;
+        }
+
+        .progress-fill.hot::after {
+            content: '';
+            position: absolute;
+            right: 0; top: 0; bottom: 0; width: 10px;
+            background: #fff;
+            box-shadow: 0 0 8px #ff4500, 0 0 12px #ff4500;
+        }
+
+        .badge-almost-full {
+            font-size: 9px;
+            color: #ff3333;
+            font-weight: 700;
+            animation: blink 1s infinite alternate;
+        }
+
+        @keyframes blink {
+            from { opacity: 1; }
+            to { opacity: 0.4; }
+        }
+
+        /* Visual Seat Grid inside Popup */
+        .seats-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 6px;
+            margin: 12px 0;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 8px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .seat-dot {
+            height: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        .seat-dot.filled {
+            background: rgba(255, 69, 0, 0.2);
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+            font-weight: 700;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(90deg, #ff4500, #ff6b00);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .btn-success {
+            background: linear-gradient(90deg, #00e676, #00b0ff);
+            color: #000;
+        }
+
+        .btn-secondary {
+            flex: 1;
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-google {
+            background: #ffffff;
+            color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-logout {
+            background: #dc3545;
+            margin-top: 15px;
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 70px;
+            background: rgba(16, 18, 26, 0.95);
+            backdrop-filter: blur(15px);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid var(--border-color);
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 10px;
+            cursor: pointer;
+            width: 25%;
+        }
+
+        .nav-btn i { font-size: 18px; }
+        .nav-btn.active { color: var(--accent-orange); font-weight: 600; }
+
+        /* Modal Sheet */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+            z-index: 2000; display: none; justify-content: center; align-items: flex-end;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal-sheet {
+            background: var(--card-bg); width: 100%; max-width: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+            border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px;
+            border-top: 1px solid var(--accent-orange);
+            animation: slideUp 0.3s cubic-bezier(0.1, 1, 0.1, 1);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+
+        /* Rules Accordion Inside Modal */
+        .rules-box {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 15px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .rules-box summary {
+            color: var(--accent-orange);
+            font-weight: 700;
+            cursor: pointer;
+            outline: none;
+            margin-bottom: 5px;
+        }
+
+        .rules-box ul {
+            padding-left: 16px;
+            margin-top: 6px;
+            line-height: 1.6;
+        }
+
+        /* Dynamic Player Form Styles */
+        .player-form-block {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .player-form-block h4 {
+            font-size: 11px;
+            color: var(--accent-orange);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .form-group input, .form-group select { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; color: #fff; font-size: 12px; outline: none; }
+        .form-group input:focus, .form-group select:focus { border-color: var(--accent-orange); }
+
+        /* Upload Area */
+        .upload-box {
+            border: 2px dashed var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            color: var(--text-muted);
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        .upload-box i { font-size: 24px; color: var(--accent-orange); margin-bottom: 6px; }
+
+        /* Profile */
+        .profile-avatar {
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--accent-orange);
+            box-shadow: 0 0 18px var(--accent-glow);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .profile-avatar-wrap {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .profile-edit-card {
+            text-align: left;
+            padding: 18px;
+        }
+
+        .profile-file-label {
+            display: block;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 11px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .profile-file-label i {
+            color: var(--accent-orange);
+            margin-right: 5px;
+        }
+
+        /* Toast Animation */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--green-glow);
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 12px;
+            box-shadow: 0 4px 15px rgba(0, 230, 118, 0.4);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            z-index: 3000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Leaderboard Lists */
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+
+        /* ADVANCED DETAIL MODAL STYLES */
+        .detail-banner {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .payout-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-top: 8px;
+        }
+
+        .payout-table th, .payout-table td {
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .payout-table th { background: rgba(255,69,0,0.15); color: var(--accent-orange); }
+
+        /* Wallet breakdown cards */
+        .wallet-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+        .wallet-stat-card { background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 8px; }
+        .wallet-stat-card span { display: block; font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+        .wallet-stat-card h3 { font-size: 18px; margin: 0; }
+    </style>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header>
+        <div class="brand-logo">Booyah <span>HUB</span></div>
+        <div class="header-actions">
+            <button class="notif-btn" id="notifToggle" onclick="window.toggleNotif()" title="Toggle Sound/Alerts">
+                <i class="fa-solid fa-bell"></i>
+            </button>
+            <div class="user-badge" onclick="window.navigate('Wallet', document.querySelectorAll('.nav-btn')[2])">
+                <i class="fa-solid fa-coins"></i>
+                <span id="headerWalletDisplay">₹ 0.00</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notice Ticker -->
+    <div class="ticker-wrap">
+        <i class="fa-solid fa-bullhorn"></i>
+        <div class="ticker-text" id="tickerContent">🔥 Loading live announcements...</div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main id="content" class="content"></main>
+
+    <!-- Toast Component -->
+    <div id="toast" class="toast"><i class="fa-solid fa-circle-check"></i> Action Completed Successfully!</div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="nav-btn active" onclick="window.navigate('Home', this)">
+            <i class="fa-solid fa-gamepad"></i>
+            <span>Arena</span>
+        </div>
+        <div class="nav-btn" onclick="window.navigate('Leaderboard', this)">
+            <i class="fa-solid fa-trophy"></i>
+            <span>Winners</span>
+        </div>
+        <div class="nav-btn" onclick="window.navigate('Wallet', this)">
+            <i class="fa-solid fa-wallet"></i>
+            <span>Wallet</span>
+        </div>
+        <div class="nav-btn" onclick="window.navigate('Profile', this)">
+            <i class="fa-solid fa-user-ninja"></i>
+            <span>Profile</span>
+        </div>
+    </nav>
+
+    <!-- ADVANCED MATCH DETAILS POPUP MODAL -->
+    <div id="detailsModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3 id="detTitle">Match Details</h3>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('detailsModal')"></i>
+            </div>
+            
+            <img id="detBanner" src="" class="detail-banner" alt="Match Banner">
+            
+            <div class="card-details" style="margin-bottom:12px;">
+                <div class="detail-item"><span>Prize Pool</span><strong id="detPrize">₹0</strong></div>
+                <div class="detail-item"><span>Entry Fee</span><strong id="detEntry">₹0</strong></div>
+                <div class="detail-item"><span>Map / Mode</span><strong id="detMode">BERMUDA</strong></div>
+            </div>
+
+            <!-- Visual Slot Grid -->
+            <div style="font-size:11px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+                <span><i class="fa-solid fa-users"></i> Slot Occupancy Grid</span>
+                <span id="detSlotText" style="color:#fff; font-weight:700;">0/48 Filled</span>
+            </div>
+            <div id="seatsGrid" class="seats-grid"></div>
+
+            <!-- Prize Breakdown Table -->
+            <div style="font-size:11px; font-weight:700; color:var(--accent-orange); margin-top:10px;">🏆 Prize Pool Breakdown</div>
+            <table class="payout-table">
+                <thead>
+                    <tr><th>Rank</th><th>Prize</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>#1 Winner (Booyah)</td><td id="payout1">50% Prize</td></tr>
+                    <tr><td>#2 Runner Up</td><td id="payout2">30% Prize</td></tr>
+                    <tr><td>Per Kill Bonus</td><td id="payoutKill">₹10 / Kill</td></tr>
+                </tbody>
+            </table>
+
+            <details class="rules-box" style="margin-top:12px;" open>
+                <summary><i class="fa-solid fa-shield-halved"></i> Match Rules & Guidelines</summary>
+                <ul>
+                    <li>Emulators prohibited (Mobile Devices Only).</li>
+                    <li>Ensure your In-Game Name matches registration details.</li>
+                    <li>Room ID & Password will be provided 15 mins prior to start.</li>
+                </ul>
+            </details>
+
+            <button id="detJoinBtn" class="btn-primary" style="margin-top:10px;">Register Now</button>
+        </div>
+    </div>
+
+    <!-- Join Match Dynamic Modal -->
+    <div id="joinModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <div>
+                    <h3 id="modalMatchTitle">Match Registration</h3>
+                    <span id="modalMatchMode" style="font-size:11px; color:var(--accent-orange); font-weight:700;">MODE: SOLO</span>
+                </div>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('joinModal')"></i>
+            </div>
+
+            <details class="rules-box">
+                <summary><i class="fa-solid fa-shield-halved"></i> Read Tournament Rules & Terms</summary>
+                <ul>
+                    <li>No Emulators allowed (Mobile Players Only).</li>
+                    <li>Gun attributes & character skills are set as per match mode.</li>
+                    <li>Teaming or hacking will lead to a permanent ban & zero refund.</li>
+                </ul>
+            </details>
+            
+            <div id="dynamicFormContainer"></div>
+
+            <button class="btn-primary" onclick="window.confirmJoin()" style="margin-top:10px;">Confirm Registration</button>
+        </div>
+    </div>
+
+    <!-- Result Upload Modal -->
+    <div id="resultModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <div>
+                    <h3>Upload Match Result</h3>
+                    <span style="font-size:11px; color:var(--green-glow); font-weight:700;">WINNER SCREENSHOT</span>
+                </div>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('resultModal')"></i>
+            </div>
+
+            <div class="form-group">
+                <label>Your Match / Room ID</label>
+                <input type="text" id="resultRoomId" placeholder="e.g. 9821412" readonly>
+            </div>
+
+            <div class="upload-box" onclick="document.getElementById('ssFile').click()">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <div style="font-size:12px; font-weight:600; color:#fff;">Click to Upload Booyah Screenshot</div>
+                <div style="font-size:10px; margin-top:4px;">PNG, JPG up to 5MB</div>
+                <input type="file" id="ssFile" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="window.handleFileSelect(this)">
+            </div>
+            <div id="fileSelectedName" style="font-size:11px; color:var(--green-glow); text-align:center; margin-bottom:10px;"></div>
+
+            <button class="btn-primary btn-success" onclick="window.submitResult()">Submit For Verification</button>
+        </div>
+    </div>
+
+    <!-- DEPOSIT INITIAL AMOUNT MODAL -->
+    <div id="depositModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>Deposit Money</h3>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('depositModal')"></i>
+            </div>
+            <div class="form-group">
+                <label>Enter Amount (Min ₹10)</label>
+                <input type="number" id="depositAmountInput" placeholder="e.g. 100" min="10">
+            </div>
+            <button class="btn-primary" onclick="window.startDirectUpiPayment()" style="margin-top:10px;">Pay via UPI</button>
+        </div>
+    </div>
+
+    <!-- VERIFY UPI UTR MODAL -->
+    <div id="verifyUpiModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>Verify UPI Payment</h3>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('verifyUpiModal')"></i>
+            </div>
+            <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">Payment complete karne ke baad Google Pay/PhonePe/Paytm se 12-digit UTR/Ref ID enter karein:</p>
+            <div class="form-group">
+                <label>12-Digit UTR Number</label>
+                <input type="text" id="upiUtrInput" placeholder="e.g. 329104829102" maxlength="12">
+            </div>
+            <button class="btn-primary btn-success" onclick="window.submitUpiVerification()" style="margin-top:10px;">Submit UTR Code</button>
+        </div>
+    </div>
+
+    <!-- WITHDRAW MODAL -->
+    <div id="withdrawModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>Withdraw Winnings</h3>
+                <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('withdrawModal')"></i>
+            </div>
+            <div class="form-group">
+                <label>Amount (Min ₹50)</label>
+                <input type="number" id="withdrawAmountInput" placeholder="e.g. 150" min="50">
+            </div>
+            <div class="form-group">
+                <label>Withdrawal Method</label>
+                <select id="withdrawMethodSelect" onchange="window.handleWithdrawMethodChange()">
+                    <option value="UPI">UPI Payment</option>
+                    <option value="BANK">Bank Transfer</option>
+                </select>
+            </div>
+            
+            <div id="withdrawUpiFields">
+                <div class="form-group">
+                    <label>UPI ID</label>
+                    <input type="text" id="withdrawUpiId" placeholder="username@upi">
+                </div>
+            </div>
+
+            <div id="withdrawBankFields" style="display:none;">
+                <div class="form-group">
+                    <label>Bank Name</label>
+                    <input type="text" id="withdrawBankName" placeholder="e.g. SBI / HDFC">
+                </div>
+                <div class="form-group">
+                    <label>Account Number</label>
+                    <input type="text" id="withdrawAccNo" placeholder="Account Number">
+                </div>
+                <div class="form-group">
+                    <label>IFSC Code</label>
+                    <input type="text" id="withdrawIfsc" placeholder="IFSC Code">
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="window.submitWithdrawalRequest()" style="margin-top:10px;">Request Withdrawal</button>
+        </div>
+    </div>
+
+    <!-- App logic lives in apps.js (uses firebase-config.js + utils.js) -->
+    <script type="module" src="./apps.js"></script>
+</body>
+</html>
