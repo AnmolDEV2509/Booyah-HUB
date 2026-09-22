@@ -226,10 +226,13 @@
             transform: translateY(-2px);
         }
 
+        /* UPDATED 16:9 ASPECT RATIO FOR BANNER IMAGE */
         .card-banner {
             width: 100%;
-            height: 110px;
-            object-fit: cover;
+            aspect-ratio: 16 / 9;
+            height: auto;
+            object-fit: contain;
+            background-color: #000;
             display: block;
         }
 
@@ -647,8 +650,10 @@
         /* ADVANCED DETAIL MODAL STYLES */
         .detail-banner {
             width: 100%;
-            height: 140px;
-            object-fit: cover;
+            aspect-ratio: 16 / 9;
+            height: auto;
+            object-fit: contain;
+            background-color: #000;
             border-radius: 12px;
             margin-bottom: 12px;
         }
