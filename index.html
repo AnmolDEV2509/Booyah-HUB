@@ -226,7 +226,6 @@
             transform: translateY(-2px);
         }
 
-        /* UPDATED 16:9 ASPECT RATIO FOR BANNER IMAGE */
         .card-banner {
             width: 100%;
             aspect-ratio: 16 / 9;
@@ -261,7 +260,6 @@
         .badge-live { background: rgba(255, 69, 0, 0.15); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
         .badge-completed { background: rgba(255, 255, 255, 0.1); color: var(--text-muted); border: 1px solid var(--border-color); }
 
-        /* ADVANCED TIMER HUD DISPLAY */
         .countdown-hud {
             display: flex;
             align-items: center;
@@ -353,7 +351,7 @@
             cursor: pointer;
         }
 
-        /* ADVANCED SLOT TRACKER WITH SEATS GRID & FIRE ANIMATION */
+        /* Slot Tracker */
         .slot-tracker { margin-bottom: 14px; }
         .slot-info { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
         .progress-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
@@ -385,7 +383,6 @@
             to { opacity: 0.4; }
         }
 
-        /* Visual Seat Grid inside Popup */
         .seats-grid {
             display: grid;
             grid-template-columns: repeat(8, 1fr);
@@ -517,7 +514,7 @@
 
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 
-        /* Rules Accordion Inside Modal */
+        /* Rules Accordion */
         .rules-box {
             background: rgba(0,0,0,0.3);
             border: 1px solid var(--border-color);
@@ -542,7 +539,7 @@
             line-height: 1.6;
         }
 
-        /* Dynamic Player Form Styles */
+        /* Player Form */
         .player-form-block {
             background: rgba(0,0,0,0.2);
             border: 1px solid var(--border-color);
@@ -621,7 +618,7 @@
             margin-right: 5px;
         }
 
-        /* Toast Animation */
+        /* Toast */
         .toast {
             position: fixed;
             bottom: 80px;
@@ -644,10 +641,8 @@
             opacity: 1;
         }
 
-        /* Leaderboard Lists */
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
 
-        /* ADVANCED DETAIL MODAL STYLES */
         .detail-banner {
             width: 100%;
             aspect-ratio: 16 / 9;
@@ -673,7 +668,6 @@
 
         .payout-table th { background: rgba(255,69,0,0.15); color: var(--accent-orange); }
 
-        /* Wallet breakdown cards */
         .wallet-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
         .wallet-stat-card { background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 8px; }
         .wallet-stat-card span { display: block; font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
@@ -728,11 +722,14 @@
         </div>
     </nav>
 
-    <!-- ADVANCED MATCH DETAILS POPUP MODAL -->
+    <!-- MATCH DETAILS POPUP MODAL (WITH SHARE BUTTON) -->
     <div id="detailsModal" class="modal-overlay">
         <div class="modal-sheet">
             <div class="modal-header">
-                <h3 id="detTitle">Match Details</h3>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <h3 id="detTitle">Match Details</h3>
+                    <i class="fa-solid fa-share-nodes" id="detShareBtn" style="color:var(--accent-orange); cursor:pointer; font-size:16px;" title="Share Match Link"></i>
+                </div>
                 <i class="fa-solid fa-xmark" style="font-size:20px; cursor:pointer;" onclick="window.closeModal('detailsModal')"></i>
             </div>
             
@@ -907,7 +904,7 @@
         </div>
     </div>
 
-    <!-- App logic lives in apps.js (uses firebase-config.js + utils.js) -->
+    <!-- App logic lives in apps.js -->
     <script type="module" src="./apps.js"></script>
 </body>
 </html>
