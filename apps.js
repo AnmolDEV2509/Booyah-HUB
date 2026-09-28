@@ -79,7 +79,6 @@ window.toggleNotif = () => {
 
 window.closeModal = (modalId) => {
     if (modalId === 'detailsModal') {
-        // Clear match parameter from URL on close
         const url = new URL(window.location.href);
         url.searchParams.delete('match');
         window.history.replaceState({}, '', url);
