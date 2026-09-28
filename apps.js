@@ -78,6 +78,12 @@ window.toggleNotif = () => {
 };
 
 window.closeModal = (modalId) => {
+    if (modalId === 'detailsModal') {
+        // Clear match parameter from URL on close
+        const url = new URL(window.location.href);
+        url.searchParams.delete('match');
+        window.history.replaceState({}, '', url);
+    }
     $(modalId)?.classList.remove('active');
     if (modalId === 'resultModal') {
         selectedResultFile = null;
@@ -85,6 +91,38 @@ window.closeModal = (modalId) => {
         if (input) input.value = '';
     }
 };
+
+/* ==========================================================================
+   SHAREABLE LINK FEATURE
+   ========================================================================== */
+window.shareTournament = async (matchId, matchName) => {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?match=${matchId}`;
+    
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: matchName || 'Booyah HUB Match',
+                text: `Join ${matchName || 'Tournament'} on Booyah HUB! 🎮🔥`,
+                url: shareUrl
+            });
+            return;
+        } catch (err) {
+            // User canceled share
+        }
+    }
+    window.copyToClipboard(shareUrl, 'Match Link');
+};
+
+function checkUrlForSharedMatch() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const matchId = urlParams.get('match');
+    if (matchId && tournamentsData.length > 0) {
+        const exists = tournamentsData.some(t => t.id === matchId);
+        if (exists) {
+            window.openDetailsModal(matchId, false);
+        }
+    }
+}
 
 /* ==========================================================================
    USER DOCUMENT + WALLET
@@ -110,7 +148,6 @@ async function ensureUserDoc(user) {
 
     const data = snap.data();
     const updates = {};
-    // Migrate old accounts that only had `walletBalance`
     if (data.depositBalance === undefined) updates.depositBalance = num(data.walletBalance);
     if (data.winningBalance === undefined) updates.winningBalance = 0;
     if (!data.name) updates.name = fallbackName;
@@ -291,7 +328,7 @@ window.renderCurrentPage = () => {
                         <h3 id="winningVal" style="color:var(--green-glow);">${fmtINR(wallet.win)}</h3>
                     </div>
                 </div>
-                <div style="display:flex; gap:10px; margin-top:15px;">
+                <div style="display:flex; gap:10px; margin-top:14px;">
                     <button class="btn-primary" onclick="window.openDepositModal()">Deposit</button>
                     <button class="btn-secondary" onclick="window.openWithdrawModal()">Withdraw</button>
                 </div>
@@ -450,7 +487,7 @@ window.saveUserProfile = async () => {
 };
 
 /* ==========================================================================
-   LIVE DATA: ANNOUNCEMENTS + TOURNAMENTS (subscribed once)
+   LIVE DATA: ANNOUNCEMENTS + TOURNAMENTS
    ========================================================================== */
 function listenToAnnouncements() {
     onSnapshot(collection(db, 'announcements'), (snapshot) => {
@@ -471,6 +508,7 @@ function listenToTournaments() {
     onSnapshot(collection(db, 'tournaments'), (snapshot) => {
         tournamentsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         window.renderTournaments();
+        checkUrlForSharedMatch();
     }, (err) => {
         console.error('Tournaments error:', err);
         const list = $('tourneys');
@@ -577,7 +615,16 @@ window.renderTournaments = () => {
                 <div class="card-body">
                     <div class="card-header">
                         <div class="card-title">${esc(t.name)}</div>
-                        <span class="badge-status ${badgeClass}">${esc(status)}</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="fa-solid fa-share-nodes" 
+                               title="Share Match"
+                               style="color:var(--accent-orange); font-size:16px; cursor:pointer; padding:4px;" 
+                               data-action="share" 
+                               data-id="${esc(t.id)}" 
+                               data-name="${esc(t.name)}">
+                            </i>
+                            <span class="badge-status ${badgeClass}">${esc(status)}</span>
+                        </div>
                     </div>
 
                     <div class="countdown-hud" ${start ? `data-start="${start}"` : ''}>
@@ -615,7 +662,6 @@ window.renderTournaments = () => {
     tickCountdowns();
 };
 
-// One shared timer for every countdown on screen (no per-card intervals to leak)
 function tickCountdowns() {
     const now = Date.now();
     document.querySelectorAll('.countdown-hud[data-start]').forEach(hud => {
@@ -633,31 +679,40 @@ function tickCountdowns() {
 setInterval(tickCountdowns, 1000);
 
 /* ==========================================================================
-   CLICK DELEGATION (replaces inline onclick with interpolated strings)
+   CLICK DELEGATION
    ========================================================================== */
 document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-action]');
     if (!el) return;
-    const { action, id, value, label } = el.dataset;
+    const { action, id, name, value, label } = el.dataset;
 
     switch (action) {
         case 'details': window.openDetailsModal(id); break;
         case 'join': window.openModal(id); break;
         case 'result': window.openResultModal(id); break;
         case 'copy': window.copyToClipboard(value, label); break;
-        default: break; // 'noop'
+        case 'share': 
+            e.stopPropagation();
+            window.shareTournament(id, name); 
+            break;
+        default: break;
     }
 });
 
 /* ==========================================================================
    DETAILS + JOIN MODALS
    ========================================================================== */
-window.openDetailsModal = (matchId) => {
+window.openDetailsModal = (matchId, updateUrl = true) => {
     const t = tournamentsData.find(x => x.id === matchId);
     if (!t) return;
 
-    $('detTitle').textContent = t.name || 'Match Details';
-    $('detBanner').src = t.banner || DEFAULT_BANNER;
+    if (updateUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('match', matchId);
+        window.history.replaceState({}, '', url);
+    }
+
+    $('detTitle').textContent = t.name \vert{}\vert{} 'Match Details';$('detBanner').src = t.banner || DEFAULT_BANNER;
     $('detPrize').textContent = `₹${num(t.prize)}`;
     $('detEntry').textContent = `₹${num(t.entry)}`;
     $('detMode').textContent = `${t.mode || 'SOLO'} | ${(t.map || 'Bermuda').toUpperCase()}`;
@@ -674,6 +729,11 @@ window.openDetailsModal = (matchId) => {
     $('payout1').textContent = `₹${Math.round(prize * 0.5)}`;
     $('payout2').textContent = `₹${Math.round(prize * 0.25)}`;
     $('payoutKill').textContent = `₹${num(t.perKill, 10)} / Kill`;
+
+    const shareBtn = $('detShareBtn');
+    if (shareBtn) {
+        shareBtn.onclick = () => window.shareTournament(t.id, t.name);
+    }
 
     const btn = $('detJoinBtn');
     const status = statusOf(t);
@@ -706,8 +766,7 @@ window.openModal = (matchId) => {
     currentMatchToJoin = matchId;
     selectedMatchMode = (t.mode || 'SOLO').toUpperCase();
 
-    $('modalMatchTitle').textContent = t.name || 'Match Registration';
-    $('modalMatchMode').textContent = `MODE: ${selectedMatchMode} • ENTRY ₹${num(t.entry)}`;
+    $('modalMatchTitle').textContent = t.name \vert{}\vert{} 'Match Registration';$('modalMatchMode').textContent = `MODE: ${selectedMatchMode} • ENTRY ₹${num(t.entry)}`;
 
     const count = playersFor(selectedMatchMode);
     $('dynamicFormContainer').innerHTML = Array.from({ length: count }, (_, k) => {
@@ -739,7 +798,6 @@ window.confirmJoin = async () => {
     const preview = tournamentsData.find(t => t.id === matchId);
     if (!preview) return notifyError('Match nahi mila.');
 
-    // Friendly early check (the real check happens inside the transaction)
     if (wallet.total < num(preview.entry)) {
         window.closeModal('joinModal');
         notifyError('Wallet me sufficient balance nahi hai. Pehle deposit karein.');
@@ -761,7 +819,7 @@ window.confirmJoin = async () => {
 
     const userRef = doc(db, 'users', currentUser.uid);
     const tourneyRef = doc(db, 'tournaments', matchId);
-    const regRef = doc(db, 'registrations', `${matchId}_${currentUser.uid}`); // one entry per user per match
+    const regRef = doc(db, 'registrations', `${matchId}_${currentUser.uid}`);
 
     isJoining = true;
     try {
@@ -780,12 +838,10 @@ window.confirmJoin = async () => {
             const joined = num(t.joinedSlots);
             if (joined + 1 > totalSlots) throw new Error('Match full ho chuka hai.');
 
-            // Entry fee always comes from the database, never from the page
             const entry = money(t.entry);
             let { dep, win } = getBalances(userSnap.data());
             if (dep + win < entry) throw new Error('Wallet me sufficient balance nahi hai. Pehle deposit karein.');
 
-            // Spend deposit cash first, then winnings
             let remaining = entry;
             const fromDep = Math.min(dep, remaining);
             dep = money(dep - fromDep);
@@ -817,7 +873,7 @@ window.confirmJoin = async () => {
 };
 
 /* ==========================================================================
-   DEPOSIT (manual UPI + UTR verification by admin)
+   DEPOSIT
    ========================================================================== */
 async function fetchUpiId() {
     try {
@@ -863,7 +919,6 @@ window.submitUpiVerification = async () => {
 
     isSubmittingDeposit = true;
     try {
-        // UTR is the document id, so the same UTR can never be submitted twice
         await setDoc(doc(db, 'deposit_requests', utr), {
             userId: currentUser.uid,
             userEmail: currentUser.email || '',
@@ -874,8 +929,7 @@ window.submitUpiVerification = async () => {
         });
 
         window.closeModal('verifyUpiModal');
-        $('upiUtrInput').value = '';
-        $('depositAmountInput').value = '';
+        $('upiUtrInput').value = '';$('depositAmountInput').value = '';
         pendingDepositAmount = 0;
         toast('Deposit request submit ho gayi! Admin verify karke balance add karega.');
     } catch (err) {
@@ -889,7 +943,7 @@ window.submitUpiVerification = async () => {
 };
 
 /* ==========================================================================
-   WITHDRAW (winnings only; balance is locked immediately inside a transaction)
+   WITHDRAW
    ========================================================================== */
 window.openWithdrawModal = () => {
     if (!currentUser) return notifyError('Pehle login karein!');
@@ -897,8 +951,7 @@ window.openWithdrawModal = () => {
 };
 
 window.handleWithdrawMethodChange = () => {
-    const isUpi = $('withdrawMethodSelect').value === 'UPI';
-    $('withdrawUpiFields').style.display = isUpi ? 'block' : 'none';
+    const isUpi = $('withdrawMethodSelect').value === 'UPI';$('withdrawUpiFields').style.display = isUpi ? 'block' : 'none';
     $('withdrawBankFields').style.display = isUpi ? 'none' : 'block';
 };
 
@@ -952,7 +1005,7 @@ window.submitWithdrawalRequest = async () => {
 
         window.closeModal('withdrawModal');
         ['withdrawAmountInput', 'withdrawUpiId', 'withdrawBankName', 'withdrawAccNo', 'withdrawIfsc']
-            .forEach(id => { if ($(id)) $(id).value = ''; });
+            .forEach(id => { if ($(id))$(id).value = ''; });
         toast('Withdrawal request submit ho gayi!');
     } catch (err) {
         console.error('Withdraw failed:', err);
@@ -972,8 +1025,7 @@ window.openResultModal = (matchId) => {
     selectedResultFile = null;
     $('resultRoomId').value = (t && t.roomId) || matchId;
     $('fileSelectedName').textContent = '';
-    if ($('ssFile')) $('ssFile').value = '';
-    $('resultModal').classList.add('active');
+    if ($('ssFile')) $('ssFile').value = '';$('resultModal').classList.add('active');
 };
 
 window.handleFileSelect = (input) => {
@@ -1005,7 +1057,6 @@ window.submitResult = async () => {
         const uploaded = await uploadBytes(fileRef, selectedResultFile, { contentType: selectedResultFile.type });
         const screenshotUrl = await getDownloadURL(uploaded.ref);
 
-        // One result per user per match (a REJECTED one can be re-submitted - see firestore.rules)
         await setDoc(doc(db, 'results', `${matchId}_${currentUser.uid}`), {
             tournamentId: matchId,
             userId: currentUser.uid,
@@ -1028,7 +1079,7 @@ window.submitResult = async () => {
 };
 
 /* ==========================================================================
-   LEADERBOARD (built from the `winners` collection written when admin pays a prize)
+   LEADERBOARD
    ========================================================================== */
 async function renderLeaderboard(content) {
     content.innerHTML = `
