@@ -1,4 +1,4 @@
-// apps.js - Booyah HUB player app (loaded by index.html)
+// apps.js - Booyah HUB player app (loaded by index_3.html)
 import { db, storage, auth, googleProvider } from "./firebase-config.js";
 import {
     collection, doc, onSnapshot, getDoc, getDocs, setDoc, runTransaction,
