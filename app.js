@@ -29,8 +29,8 @@ let tournamentsData = [];
 let activeModeFilter = 'ALL';
 let currentSelectedMatch = null;
 
-// GLOBAL HELPER FUNCTIONS
-window.switchTab = (tabName) => {
+// EXPLICIT GLOBAL BINDINGS FOR INLINE HTML ONCLICK HANDLERS
+window.switchTab = function(tabName) {
     const tabs = ['tournaments', 'wallet', 'leaderboard', 'profile'];
     tabs.forEach(t => {
         const viewEl = document.getElementById(`view-${t}`);
@@ -51,17 +51,17 @@ window.switchTab = (tabName) => {
     }
 };
 
-window.openModal = (id) => {
+window.openModal = function(id) {
     const modal = document.getElementById(id);
     if (modal) modal.classList.remove("hidden");
 };
 
-window.closeModal = (id) => {
+window.closeModal = function(id) {
     const modal = document.getElementById(id);
     if (modal) modal.classList.add("hidden");
 };
 
-window.filterMode = (mode) => {
+window.filterMode = function(mode) {
     activeModeFilter = mode;
     document.querySelectorAll(".filter-chip").forEach(chip => {
         if (chip.textContent === mode) {
@@ -73,7 +73,7 @@ window.filterMode = (mode) => {
     renderTournaments();
 };
 
-window.openMatchDetails = (matchId) => {
+window.openMatchDetails = function(matchId) {
     currentSelectedMatch = tournamentsData.find(t => t.id === matchId);
     if (!currentSelectedMatch) return;
 
@@ -84,26 +84,31 @@ window.openMatchDetails = (matchId) => {
 
     // Dynamic Seat Grid Visualizer
     const seatGrid = document.getElementById("modalSeatGrid");
-    seatGrid.innerHTML = "";
-    const totalSlots = currentSelectedMatch.totalSlots || 48;
-    const filledSlots = currentSelectedMatch.registeredSlots || 0;
+    if (seatGrid) {
+        seatGrid.innerHTML = "";
+        const totalSlots = currentSelectedMatch.totalSlots || 48;
+        const filledSlots = currentSelectedMatch.registeredSlots || 0;
 
-    for (let i = 1; i <= totalSlots; i++) {
-        const isFilled = i <= filledSlots;
-        const dot = document.createElement("div");
-        dot.className = `w-full aspect-square rounded-lg flex items-center justify-center text-[10px] font-bold ${
-            isFilled 
-            ? 'bg-slate-800 text-slate-600 border border-slate-700/50' 
-            : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500 hover:text-slate-950 cursor-pointer transition'
-        }`;
-        dot.textContent = i;
-        seatGrid.appendChild(dot);
+        for (let i = 1; i <= totalSlots; i++) {
+            const isFilled = i <= filledSlots;
+            const dot = document.createElement("div");
+            dot.className = `w-full aspect-square rounded-lg flex items-center justify-center text-[10px] font-bold ${
+                isFilled 
+                ? 'bg-slate-800 text-slate-600 border border-slate-700/50' 
+                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500 hover:text-slate-950 cursor-pointer transition'
+            }`;
+            dot.textContent = i;
+            seatGrid.appendChild(dot);
+        }
     }
 
-    document.getElementById("btnProceedRegister").onclick = () => {
-        window.closeModal("matchModal");
-        openRegistrationModal();
-    };
+    const btnRegister = document.getElementById("btnProceedRegister");
+    if (btnRegister) {
+        btnRegister.onclick = () => {
+            window.closeModal("matchModal");
+            openRegistrationModal();
+        };
+    }
 
     window.openModal("matchModal");
 };
@@ -140,10 +145,15 @@ function setupAuthListeners() {
             if (loginBtn) loginBtn.classList.add("hidden");
             if (profileNav) profileNav.classList.remove("hidden");
             
-            document.getElementById("userAvatar").src = user.photoURL || 'https://via.placeholder.com/150';
-            document.getElementById("profileCardAvatar").src = user.photoURL || 'https://via.placeholder.com/150';
-            document.getElementById("profileCardName").textContent = user.displayName || 'Gamer';
-            document.getElementById("profileCardEmail").textContent = user.email;
+            const avatar = document.getElementById("userAvatar");
+            const profileAvatar = document.getElementById("profileCardAvatar");
+            const profileName = document.getElementById("profileCardName");
+            const profileEmail = document.getElementById("profileCardEmail");
+
+            if (avatar) avatar.src = user.photoURL || 'https://via.placeholder.com/150';
+            if (profileAvatar) profileAvatar.src = user.photoURL || 'https://via.placeholder.com/150';
+            if (profileName) profileName.textContent = user.displayName || 'Gamer';
+            if (profileEmail) profileEmail.textContent = user.email;
 
             await syncUserProfile(user);
             listenUserRealtimeData(user.uid);
@@ -180,19 +190,27 @@ function listenUserRealtimeData(uid) {
             userProfile = docSnap.data();
             const total = (userProfile.depositBalance || 0) + (userProfile.winningsBalance || 0);
             
-            document.getElementById("navWalletBalance").textContent = `₹${total}`;
-            document.getElementById("depositBalanceText").textContent = `₹${userProfile.depositBalance || 0}`;
-            document.getElementById("winningsBalanceText").textContent = `₹${userProfile.winningsBalance || 0}`;
-            document.getElementById("totalBalanceText").textContent = `₹${total}`;
+            const navBal = document.getElementById("navWalletBalance");
+            const depBal = document.getElementById("depositBalanceText");
+            const winBal = document.getElementById("winningsBalanceText");
+            const totBal = document.getElementById("totalBalanceText");
 
-            if (userProfile.ign) document.getElementById("profileIgn").value = userProfile.ign;
-            if (userProfile.characterUid) document.getElementById("profileUid").value = userProfile.characterUid;
+            if (navBal) navBal.textContent = `₹${total}`;
+            if (depBal) depBal.textContent = `₹${userProfile.depositBalance || 0}`;
+            if (winBal) winBal.textContent = `₹${userProfile.winningsBalance || 0}`;
+            if (totBal) totBal.textContent = `₹${total}`;
+
+            const ignInput = document.getElementById("profileIgn");
+            const uidInput = document.getElementById("profileUid");
+            if (ignInput && userProfile.ign) ignInput.value = userProfile.ign;
+            if (uidInput && userProfile.characterUid) uidInput.value = userProfile.characterUid;
         }
     });
 
     const qTx = query(collection(db, "transactions"), where("userId", "==", uid), orderBy("createdAt", "desc"), limit(10));
     onSnapshot(qTx, (snapshot) => {
         const tbody = document.getElementById("transactionHistoryTable");
+        if (!tbody) return;
         tbody.innerHTML = "";
         if (snapshot.empty) {
             tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500">No transactions found.</td></tr>`;
@@ -233,7 +251,10 @@ function listenTournaments() {
 
 function renderTournaments() {
     const grid = document.getElementById("tournamentsGrid");
-    const searchQuery = document.getElementById("tournamentSearch").value.toLowerCase();
+    const searchInput = document.getElementById("tournamentSearch");
+    if (!grid) return;
+
+    const searchQuery = searchInput ? searchInput.value.toLowerCase() : "";
 
     const filtered = tournamentsData.filter(t => {
         const matchesMode = activeModeFilter === 'ALL' || t.mode === activeModeFilter;
@@ -313,11 +334,13 @@ function openRegistrationModal() {
     }
 
     const container = document.getElementById("dynamicPlayerInputs");
+    if (!container) return;
     container.innerHTML = "";
     const mode = currentSelectedMatch.mode || 'SOLO'; 
     const playerCount = mode === 'SQUAD' ? 4 : (mode === 'DUO' ? 2 : 1);
 
-    document.getElementById("registerDeductFee").textContent = `₹${currentSelectedMatch.entryFee || 0}`;
+    const feeEl = document.getElementById("registerDeductFee");
+    if (feeEl) feeEl.textContent = `₹${currentSelectedMatch.entryFee || 0}`;
 
     for (let i = 1; i <= playerCount; i++) {
         const isSelf = i === 1;
@@ -339,135 +362,147 @@ function openRegistrationModal() {
 }
 
 function setupForms() {
-    document.getElementById("tournamentRegistrationForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (!currentUser || !currentSelectedMatch) return;
+    const regForm = document.getElementById("tournamentRegistrationForm");
+    if (regForm) {
+        regForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!currentUser || !currentSelectedMatch) return;
 
-        const entryFee = currentSelectedMatch.entryFee || 0;
+            const entryFee = currentSelectedMatch.entryFee || 0;
 
-        try {
-            await runTransaction(db, async (transaction) => {
-                const userRef = doc(db, "users", currentUser.uid);
-                const tournamentRef = doc(db, "tournaments", currentSelectedMatch.id);
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const userRef = doc(db, "users", currentUser.uid);
+                    const tournamentRef = doc(db, "tournaments", currentSelectedMatch.id);
 
-                const userDoc = await transaction.get(userRef);
-                const tourneyDoc = await transaction.get(tournamentRef);
+                    const userDoc = await transaction.get(userRef);
+                    const tourneyDoc = await transaction.get(tournamentRef);
 
-                if (!userDoc.exists()) throw new Error("User profile not found!");
-                if (!tourneyDoc.exists()) throw new Error("Tournament does not exist!");
+                    if (!userDoc.exists()) throw new Error("User profile not found!");
+                    if (!tourneyDoc.exists()) throw new Error("Tournament does not exist!");
 
-                const userData = userDoc.data();
-                const tourneyData = tourneyDoc.data();
+                    const userData = userDoc.data();
+                    const tourneyData = tourneyDoc.data();
 
-                let deposit = userData.depositBalance || 0;
-                let winnings = userData.winningsBalance || 0;
-                let totalBal = deposit + winnings;
+                    let deposit = userData.depositBalance || 0;
+                    let winnings = userData.winningsBalance || 0;
+                    let totalBal = deposit + winnings;
 
-                if (totalBal < entryFee) {
-                    throw new Error("Insufficient Wallet Balance! Add funds to join.");
-                }
+                    if (totalBal < entryFee) {
+                        throw new Error("Insufficient Wallet Balance! Add funds to join.");
+                    }
 
-                if ((tourneyData.registeredSlots || 0) >= (tourneyData.totalSlots || 48)) {
-                    throw new Error("Tournament is already FULL!");
-                }
+                    if ((tourneyData.registeredSlots || 0) >= (tourneyData.totalSlots || 48)) {
+                        throw new Error("Tournament is already FULL!");
+                    }
 
-                let remainingFee = entryFee;
-                if (deposit >= remainingFee) {
-                    deposit -= remainingFee;
-                } else {
-                    remainingFee -= deposit;
-                    deposit = 0;
-                    winnings -= remainingFee;
-                }
+                    let remainingFee = entryFee;
+                    if (deposit >= remainingFee) {
+                        deposit -= remainingFee;
+                    } else {
+                        remainingFee -= deposit;
+                        deposit = 0;
+                        winnings -= remainingFee;
+                    }
 
-                transaction.update(userRef, {
-                    depositBalance: deposit,
-                    winningsBalance: winnings
+                    transaction.update(userRef, {
+                        depositBalance: deposit,
+                        winningsBalance: winnings
+                    });
+
+                    transaction.update(tournamentRef, {
+                        registeredSlots: (tourneyData.registeredSlots || 0) + 1
+                    });
+
+                    const txRef = doc(collection(db, "transactions"));
+                    transaction.set(txRef, {
+                        userId: currentUser.uid,
+                        type: "REGISTRATION",
+                        amount: entryFee,
+                        status: "SUCCESS",
+                        tournamentId: currentSelectedMatch.id,
+                        createdAt: serverTimestamp()
+                    });
                 });
 
-                transaction.update(tournamentRef, {
-                    registeredSlots: (tourneyData.registeredSlots || 0) + 1
-                });
+                alert("Registration Successful!");
+                window.closeModal("registerModal");
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+    }
 
-                const txRef = doc(collection(db, "transactions"));
-                transaction.set(txRef, {
-                    userId: currentUser.uid,
-                    type: "REGISTRATION",
-                    amount: entryFee,
-                    status: "SUCCESS",
-                    tournamentId: currentSelectedMatch.id,
-                    createdAt: serverTimestamp()
-                });
+    const profForm = document.getElementById("profileForm");
+    if (profForm) {
+        profForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const ign = document.getElementById("profileIgn").value.trim();
+            const characterUid = document.getElementById("profileUid").value.trim();
+
+            await setDoc(doc(db, "users", currentUser.uid), { ign, characterUid }, { merge: true });
+            alert("Credentials saved!");
+        });
+    }
+
+    const addForm = document.getElementById("addMoneyForm");
+    if (addForm) {
+        addForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const amount = parseFloat(document.getElementById("addAmount").value);
+            const utr = document.getElementById("addUtr").value.trim();
+
+            const txRef = doc(collection(db, "transactions"));
+            await setDoc(txRef, {
+                userId: currentUser.uid,
+                type: "DEPOSIT",
+                amount: amount,
+                utr: utr,
+                status: "PENDING",
+                createdAt: serverTimestamp()
             });
 
-            alert("Registration Successful!");
-            window.closeModal("registerModal");
-        } catch (err) {
-            alert(err.message);
-        }
-    });
-
-    document.getElementById("profileForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (!currentUser) return;
-
-        const ign = document.getElementById("profileIgn").value.trim();
-        const characterUid = document.getElementById("profileUid").value.trim();
-
-        await setDoc(doc(db, "users", currentUser.uid), { ign, characterUid }, { merge: true });
-        alert("Credentials saved!");
-    });
-
-    document.getElementById("addMoneyForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (!currentUser) return;
-
-        const amount = parseFloat(document.getElementById("addAmount").value);
-        const utr = document.getElementById("addUtr").value.trim();
-
-        const txRef = doc(collection(db, "transactions"));
-        await setDoc(txRef, {
-            userId: currentUser.uid,
-            type: "DEPOSIT",
-            amount: amount,
-            utr: utr,
-            status: "PENDING",
-            createdAt: serverTimestamp()
+            alert("Verification request submitted!");
+            window.closeModal("addMoneyModal");
+            document.getElementById("addMoneyForm").reset();
         });
+    }
 
-        alert("Verification request submitted!");
-        window.closeModal("addMoneyModal");
-        document.getElementById("addMoneyForm").reset();
-    });
+    const drawForm = document.getElementById("withdrawForm");
+    if (drawForm) {
+        drawForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!currentUser) return;
 
-    document.getElementById("withdrawForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (!currentUser) return;
+            const amount = parseFloat(document.getElementById("withdrawAmount").value);
+            const method = document.getElementById("withdrawMethod").value;
+            const details = document.getElementById("withdrawDetails").value.trim();
 
-        const amount = parseFloat(document.getElementById("withdrawAmount").value);
-        const method = document.getElementById("withdrawMethod").value;
-        const details = document.getElementById("withdrawDetails").value.trim();
+            if (amount > (userProfile?.winningsBalance || 0)) {
+                alert("Insufficient Winnings balance!");
+                return;
+            }
 
-        if (amount > (userProfile?.winningsBalance || 0)) {
-            alert("Insufficient Winnings balance!");
-            return;
-        }
+            const txRef = doc(collection(db, "transactions"));
+            await setDoc(txRef, {
+                userId: currentUser.uid,
+                type: "WITHDRAWAL",
+                amount: amount,
+                method: method,
+                details: details,
+                status: "PENDING",
+                createdAt: serverTimestamp()
+            });
 
-        const txRef = doc(collection(db, "transactions"));
-        await setDoc(txRef, {
-            userId: currentUser.uid,
-            type: "WITHDRAWAL",
-            amount: amount,
-            method: method,
-            details: details,
-            status: "PENDING",
-            createdAt: serverTimestamp()
+            alert("Payout request submitted!");
+            window.closeModal("withdrawModal");
+            document.getElementById("withdrawForm").reset();
         });
-
-        alert("Payout request submitted!");
-        window.closeModal("withdrawModal");
-        document.getElementById("withdrawForm").reset();
-    });
+    }
 }
 
 // REALTIME LEADERBOARD
@@ -475,6 +510,7 @@ function listenLeaderboard() {
     const q = query(collection(db, "users"), orderBy("winningsBalance", "desc"), limit(10));
     onSnapshot(q, (snapshot) => {
         const list = document.getElementById("leaderboardList");
+        if (!list) return;
         list.innerHTML = "";
         let rank = 1;
 
@@ -524,19 +560,3 @@ function setupMessagingListeners() {
         });
     }
 }
-
-// Optional helper for requesting FCM token during testing
-window.requestFcmToken = async (vapidKey) => {
-    try {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-            const token = await getToken(messaging, { vapidKey });
-            console.log("Your FCM Token:", token);
-            return token;
-        } else {
-            console.warn("Notification permission denied!");
-        }
-    } catch (err) {
-        console.error("Error getting FCM Token:", err);
-    }
-};
