@@ -1,642 +1,491 @@
-// app.js
-import { db, auth, googleProvider } from './firebase-config.js';
+import { db, auth, googleProvider } from "./firebase-config.js";
+import { 
+    signInWithPopup, 
+    onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { 
     collection, 
     doc, 
-    getDocs, 
+    getDoc, 
     setDoc, 
-    updateDoc, 
-    addDoc,
+    onSnapshot, 
+    runTransaction, 
+    serverTimestamp, 
     query, 
     where, 
     orderBy, 
-    limit,
-    onSnapshot,
-    runTransaction,
-    serverTimestamp 
+    limit 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// Global Application State
+// STATE MANAGEMENT
 let currentUser = null;
-let currentMatches = [];
-let selectedMatch = null;
-let userUnsub = null;
-let matchesUnsub = null;
+let userProfile = null;
+let tournamentsData = [];
+let activeModeFilter = 'ALL';
+let currentSelectedMatch = null;
 
-// ==========================================
-// 1. DYNAMIC NAVIGATION & PAGE SHIFTING
-// ==========================================
-window.navigate = function(pageName, btnElement) {
-    // Bottom Nav Active State Highlight
-    if (btnElement) {
-        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-        btnElement.classList.add('active');
-    } else {
-        // Fallback for programmatically navigating
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            const label = btn.querySelector('span')?.innerText;
-            if (label && label.toLowerCase() === pageName.toLowerCase()) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-    }
-
-    const contentDiv = document.getElementById('content');
-    if (!contentDiv) return;
-
-    contentDiv.dataset.activePage = pageName;
-    
-    // Clean transition effect
-    contentDiv.style.opacity = '0';
-    contentDiv.style.transform = 'translateY(6px)';
-
-    setTimeout(() => {
-        switch(pageName) {
-            case 'Home':
-                renderHomePage(contentDiv);
-                break;
-            case 'Leaderboard':
-                renderLeaderboardPage(contentDiv);
-                break;
-            case 'Wallet':
-                renderWalletPage(contentDiv);
-                break;
-            case 'Profile':
-                renderProfilePage(contentDiv);
-                break;
-            default:
-                renderHomePage(contentDiv);
-        }
-        contentDiv.style.opacity = '1';
-        contentDiv.style.transform = 'translateY(0)';
-    }, 120);
-};
-
-// Modals Handling
-window.openModal = function(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.classList.add('active');
-};
-
-window.closeModal = function(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.classList.remove('active');
-};
-
-// ==========================================
-// 2. AUTHENTICATION & REALTIME USER SYNC
-// ==========================================
-onAuthStateChanged(auth, (user) => {
-    if (userUnsub) userUnsub();
-
-    if (user) {
-        const userRef = doc(db, 'users', user.uid);
-        
-        // Realtime Listener for User Balance & Data
-        userUnsub = onSnapshot(userRef, async (docSnap) => {
-            if (docSnap.exists()) {
-                currentUser = { uid: user.uid, ...docSnap.data() };
-            } else {
-                const newUser = {
-                    uid: user.uid,
-                    displayName: user.displayName || 'Booyah Player',
-                    email: user.email || '',
-                    photoURL: user.photoURL || 'https://via.placeholder.com/90',
-                    walletBalance: 0,
-                    winnings: 0,
-                    ign: '',
-                    gameUid: '',
-                    createdAt: serverTimestamp()
-                };
-                await setDoc(userRef, newUser);
-                currentUser = newUser;
-            }
-            
-            const totalBalance = (currentUser.walletBalance || 0) + (currentUser.winnings || 0);
-            updateHeaderWalletDisplay(totalBalance);
-
-            // Active page dynamic refresh if required
-            const contentDiv = document.getElementById('content');
-            if (contentDiv) {
-                const currentPage = contentDiv.dataset.activePage;
-                if (currentPage === 'Wallet') renderWalletPage(contentDiv);
-                if (currentPage === 'Profile') renderProfilePage(contentDiv);
-            }
-        }, (err) => {
-            console.error("User Realtime Error:", err);
-        });
-    } else {
-        currentUser = null;
-        updateHeaderWalletDisplay(0);
-        const contentDiv = document.getElementById('content');
-        if (contentDiv && contentDiv.dataset.activePage === 'Profile') {
-            renderProfilePage(contentDiv);
-        }
-    }
-
-    const contentDiv = document.getElementById('content');
-    if (contentDiv && !contentDiv.dataset.activePage) {
-        window.navigate('Home');
-    }
+// INITIALIZATION
+document.addEventListener("DOMContentLoaded", () => {
+    setupAuthListeners();
+    setupTabSwitching();
+    setupSearchAndFilters();
+    listenTournaments();
+    listenLeaderboard();
+    setupForms();
 });
 
-// ==========================================
-// 3. PAGE RENDERERS WITH FIRESTORE
-// ==========================================
-
-// --- HOME PAGE ---
-function renderHomePage(container) {
-    container.innerHTML = `
-        <div class="search-box">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="searchInput" placeholder="Search tournament..." onkeyup="window.filterMatches()">
-        </div>
-
-        <div class="filter-chips">
-            <button class="chip active" onclick="window.filterByTag('ALL', this)">ALL</button>
-            <button class="chip" onclick="window.filterByTag('SOLO', this)">SOLO</button>
-            <button class="chip" onclick="window.filterByTag('DUO', this)">DUO</button>
-            <button class="chip" onclick="window.filterByTag('SQUAD', this)">SQUAD</button>
-        </div>
-
-        <div class="section-title">
-            <i class="fa-solid fa-fire"></i> Active Tournaments
-        </div>
-
-        <div id="matchesListContainer">
-            <div style="text-align:center; padding:30px; color:var(--text-muted);">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size:24px;"></i>
-                <p style="margin-top:10px;">Connecting to Firebase...</p>
-            </div>
-        </div>
-    `;
-
-    listenToLiveMatches();
-}
-
-function listenToLiveMatches() {
-    const container = document.getElementById('matchesListContainer');
-    if (!container) return;
-
-    if (matchesUnsub) matchesUnsub();
-
-    const q = query(collection(db, 'tournaments'), orderBy('createdAt', 'desc'));
-
-    matchesUnsub = onSnapshot(q, (snapshot) => {
-        if (snapshot.empty) {
-            container.innerHTML = `
-                <div class="card card-body" style="text-align:center; color:var(--text-muted); padding:30px;">
-                    <i class="fa-solid fa-circle-exclamation" style="font-size:28px; margin-bottom:8px; color:var(--accent-orange);"></i>
-                    <p>Abhi koi match live nahi hai.</p>
-                </div>
-            `;
-            currentMatches = [];
-            return;
+// 1. AUTHENTICATION
+function setupAuthListeners() {
+    const googleBtn = document.getElementById("googleLoginBtn");
+    googleBtn.addEventListener("click", async () => {
+        try {
+            await signInWithPopup(auth, googleProvider);
+        } catch (err) {
+            alert("Login Failed: " + err.message);
         }
+    });
 
-        currentMatches = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-        renderMatchCards(currentMatches, container);
-    }, (error) => {
-        console.error("Firestore Listen Error:", error);
-        container.innerHTML = `<p style="color:red; text-align:center;">Firebase Error: ${error.message}</p>`;
+    onAuthStateChanged(auth, async (user) => {
+        currentUser = user;
+        const profileNav = document.getElementById("userProfileNav");
+        const loginBtn = document.getElementById("googleLoginBtn");
+
+        if (user) {
+            loginBtn.classList.add("hidden");
+            profileNav.classList.remove("hidden");
+            document.getElementById("userAvatar").src = user.photoURL || 'https://via.placeholder.com/150';
+            document.getElementById("profileCardAvatar").src = user.photoURL || 'https://via.placeholder.com/150';
+            document.getElementById("profileCardName").textContent = user.displayName || 'Gamer';
+            document.getElementById("profileCardEmail").textContent = user.email;
+
+            // Sync user document
+            await syncUserProfile(user);
+            listenUserRealtimeData(user.uid);
+        } else {
+            loginBtn.classList.remove("hidden");
+            profileNav.classList.add("hidden");
+        }
     });
 }
 
-function renderMatchCards(matches, container) {
-    if (!container) return;
-    if (matches.length === 0) {
-        container.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">Koi match nahi mila.</p>`;
+async function syncUserProfile(user) {
+    const userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
+
+    if (!snap.exists()) {
+        const initialData = {
+            uid: user.uid,
+            name: user.displayName,
+            email: user.email,
+            photoURL: user.photoURL,
+            depositBalance: 0,
+            winningsBalance: 0,
+            ign: "",
+            characterUid: "",
+            createdAt: serverTimestamp()
+        };
+        await setDoc(userRef, initialData);
+    }
+}
+
+function listenUserRealtimeData(uid) {
+    onSnapshot(doc(db, "users", uid), (docSnap) => {
+        if (docSnap.exists()) {
+            userProfile = docSnap.data();
+            const total = (userProfile.depositBalance || 0) + (userProfile.winningsBalance || 0);
+            
+            document.getElementById("navWalletBalance").textContent = `₹${total}`;
+            document.getElementById("depositBalanceText").textContent = `₹${userProfile.depositBalance || 0}`;
+            document.getElementById("winningsBalanceText").textContent = `₹${userProfile.winningsBalance || 0}`;
+            document.getElementById("totalBalanceText").textContent = `₹${total}`;
+
+            // Populate profile inputs
+            if (userProfile.ign) document.getElementById("profileIgn").value = userProfile.ign;
+            if (userProfile.characterUid) document.getElementById("profileUid").value = userProfile.characterUid;
+        }
+    });
+
+    // Listen to User Transactions
+    const qTx = query(collection(db, "transactions"), where("userId", "==", uid), orderBy("createdAt", "desc"), limit(10));
+    onSnapshot(qTx, (snapshot) => {
+        const tbody = document.getElementById("transactionHistoryTable");
+        tbody.innerHTML = "";
+        if (snapshot.empty) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500">No transactions found.</td></tr>`;
+            return;
+        }
+        snapshot.forEach(docSnap => {
+            const tx = docSnap.data();
+            const dateStr = tx.createdAt ? new Date(tx.createdAt.toDate()).toLocaleDateString() : 'Pending';
+            
+            let statusColor = 'text-amber-400 bg-amber-500/10';
+            if (tx.status === 'SUCCESS' || tx.status === 'APPROVED') statusColor = 'text-emerald-400 bg-emerald-500/10';
+            if (tx.status === 'REJECTED' || tx.status === 'FAILED') statusColor = 'text-rose-400 bg-rose-500/10';
+
+            tbody.innerHTML += `
+                <tr>
+                    <td class="p-3 font-semibold text-slate-200">${tx.type}</td>
+                    <td class="p-3 font-bold ${tx.type === 'DEPOSIT' || tx.type === 'WINNING' ? 'text-emerald-400' : 'text-slate-200'}">₹${tx.amount}</td>
+                    <td class="p-3"><span class="px-2 py-1 rounded-md text-[10px] font-bold ${statusColor}">${tx.status}</span></td>
+                    <td class="p-3 text-slate-500 text-xs">${dateStr}</td>
+                </tr>
+            `;
+        });
+    });
+}
+
+// 2. MATCH DISCOVERY & FILTERS
+function listenTournaments() {
+    onSnapshot(collection(db, "tournaments"), (snapshot) => {
+        tournamentsData = [];
+        snapshot.forEach(docSnap => {
+            tournamentsData.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        renderTournaments();
+    });
+}
+
+function renderTournaments() {
+    const grid = document.getElementById("tournamentsGrid");
+    const searchQuery = document.getElementById("tournamentSearch").value.toLowerCase();
+
+    const filtered = tournamentsData.filter(t => {
+        const matchesMode = activeModeFilter === 'ALL' || t.mode === activeModeFilter;
+        const matchesSearch = t.title.toLowerCase().includes(searchQuery);
+        return matchesMode && matchesSearch;
+    });
+
+    grid.innerHTML = "";
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500">No tournaments active right now.</div>`;
         return;
     }
 
-    container.innerHTML = matches.map(m => {
-        const filled = m.filledSlots || 0;
-        const total = m.totalSlots || 48;
-        const percent = Math.min(100, Math.round((filled / total) * 100));
+    filtered.forEach(t => {
+        const filledSlots = t.registeredSlots || 0;
+        const maxSlots = t.totalSlots || 48;
+        const fillPercentage = Math.min(100, Math.round((filledSlots / maxSlots) * 100));
 
-        return `
-            <div class="card">
-                <img src="${m.banner || 'https://via.placeholder.com/600x200/14171f/ff5500?text=Booyah+HUB'}" class="card-banner" alt="Match Banner">
-                <div class="card-body">
-                    <div class="card-header">
-                        <div class="card-title">${m.title || m.name || 'Free Fire Tournament'}</div>
-                        <span class="badge-status badge-upcoming">${m.status || 'UPCOMING'}</span>
+        grid.innerHTML += `
+            <div class="bg-slate-900/60 border border-slate-800 hover:border-slate-700/80 rounded-2xl overflow-hidden transition backdrop-blur-sm flex flex-col justify-between">
+                <div>
+                    <div class="relative h-40 bg-slate-950 overflow-hidden">
+                        <img src="${t.bannerUrl || 'https://via.placeholder.com/600x300'}" class="w-full h-full object-cover">
+                        <span class="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-extrabold text-orange-400 border border-orange-500/20">${t.mode}</span>
+                        <span class="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-bold text-slate-300 border border-slate-800">${t.status || 'UPCOMING'}</span>
                     </div>
-                    <div class="card-details">
-                        <div class="detail-item"><span>PRIZE POOL</span><strong>₹${m.prizePool || 0}</strong></div>
-                        <div class="detail-item"><span>ENTRY</span><strong>₹${m.entryFee || 0}</strong></div>
-                        <div class="detail-item"><span>MODE</span><strong>${m.mode || 'SOLO'}</strong></div>
-                    </div>
-                    <div class="slot-tracker">
-                        <div class="slot-info">
-                            <span>Slots Filled</span>
-                            <span>${filled}/${total}</span>
+                    <div class="p-5 space-y-4">
+                        <h3 class="font-bold text-slate-100 text-lg leading-snug">${t.title}</h3>
+                        
+                        <div class="grid grid-cols-3 gap-2 bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 text-center">
+                            <div>
+                                <span class="text-[10px] text-slate-500 block font-bold uppercase">Prize Pool</span>
+                                <span class="text-xs font-extrabold text-amber-400">₹${t.prizePool}</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-500 block font-bold uppercase">Per Kill</span>
+                                <span class="text-xs font-extrabold text-emerald-400">₹${t.perKill}</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-500 block font-bold uppercase">Entry</span>
+                                <span class="text-xs font-extrabold text-orange-400">₹${t.entryFee}</span>
+                            </div>
                         </div>
-                        <div class="progress-bg">
-                            <div class="progress-fill" style="width: ${percent}%"></div>
+
+                        <!-- Slot Tracking Bar -->
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span class="text-slate-400">Spots Filled</span>
+                                <span class="text-slate-200">${filledSlots}/${maxSlots}</span>
+                            </div>
+                            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                                <div class="bg-gradient-to-r from-orange-500 to-amber-400 h-2 rounded-full transition-all duration-300" style="width: ${fillPercentage}%"></div>
+                            </div>
                         </div>
                     </div>
-                    <button class="btn-primary" onclick="window.viewMatchDetails('${m.id}')">View Details & Join</button>
+                </div>
+                <div class="p-5 pt-0">
+                    <button onclick="openMatchDetails('${t.id}')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-2">
+                        View & Join <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </button>
                 </div>
             </div>
         `;
-    }).join('');
+    });
 }
 
-// --- LEADERBOARD PAGE ---
-function renderLeaderboardPage(container) {
-    container.innerHTML = `
-        <div class="section-title"><i class="fa-solid fa-trophy"></i> Global Leaderboard</div>
-        <div class="card card-body" id="leaderboardContainer">
-            <div style="text-align:center; padding:20px; color:var(--text-muted);">
-                <i class="fa-solid fa-spinner fa-spin"></i> Fetching Rankings...
+function setupSearchAndFilters() {
+    document.getElementById("tournamentSearch").addEventListener("input", renderTournaments);
+}
+
+window.filterMode = (mode) => {
+    activeModeFilter = mode;
+    document.querySelectorAll(".filter-chip").forEach(chip => {
+        if (chip.textContent === mode) {
+            chip.className = "filter-chip active-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition";
+        } else {
+            chip.className = "filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition";
+        }
+    });
+    renderTournaments();
+};
+
+// 3. MATCH DETAILS & INTERACTIVE SEAT GRID
+window.openMatchDetails = (matchId) => {
+    currentSelectedMatch = tournamentsData.find(t => t.id === matchId);
+    if (!currentSelectedMatch) return;
+
+    document.getElementById("modalMatchTitle").textContent = currentSelectedMatch.title;
+    document.getElementById("modalPrizePool").textContent = `₹${currentSelectedMatch.prizePool}`;
+    document.getElementById("modalPerKill").textContent = `₹${currentSelectedMatch.perKill}`;
+    document.getElementById("modalEntryFee").textContent = `₹${currentSelectedMatch.entryFee}`;
+
+    // Render Seats Grid
+    const seatGrid = document.getElementById("modalSeatGrid");
+    seatGrid.innerHTML = "";
+    const totalSlots = currentSelectedMatch.totalSlots || 48;
+    const filledSlots = currentSelectedMatch.registeredSlots || 0;
+
+    for (let i = 1; i <= totalSlots; i++) {
+        const isFilled = i <= filledSlots;
+        const dot = document.createElement("div");
+        dot.className = `w-full aspect-square rounded-lg flex items-center justify-center text-[10px] font-bold ${
+            isFilled ? 'bg-slate-800 text-slate-600 border border-slate-700/50' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500 hover:text-slate-950 cursor-pointer transition'
+        }`;
+        dot.textContent = i;
+        seatGrid.appendChild(dot);
+    }
+
+    document.getElementById("btnProceedRegister").onclick = () => {
+        closeModal("matchModal");
+        openRegistrationModal();
+    };
+
+    openModal("matchModal");
+};
+
+// 4. SMART TOURNAMENT REGISTRATION (ATOMIC TRANSACTION)
+function openRegistrationModal() {
+    if (!currentUser) {
+        alert("Please Google Login to register for tournaments!");
+        return;
+    }
+
+    const container = document.getElementById("dynamicPlayerInputs");
+    container.innerHTML = "";
+    const mode = currentSelectedMatch.mode; // SOLO, DUO, SQUAD
+    const playerCount = mode === 'SQUAD' ? 4 : (mode === 'DUO' ? 2 : 1);
+
+    document.getElementById("registerDeductFee").textContent = `₹${currentSelectedMatch.entryFee}`;
+
+    for (let i = 1; i <= playerCount; i++) {
+        const isSelf = i === 1;
+        const defaultIgn = isSelf ? (userProfile?.ign || '') : '';
+        const defaultUid = isSelf ? (userProfile?.characterUid || '') : '';
+
+        container.innerHTML += `
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+                <span class="text-[11px] font-bold text-orange-400 uppercase">Player ${i} Details</span>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="regIgn_${i}" value="${defaultIgn}" required placeholder="In-Game Name (IGN)" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200">
+                    <input type="text" id="regUid_${i}" value="${defaultUid}" required placeholder="Character UID" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200">
+                </div>
             </div>
-        </div>
-    `;
+        `;
+    }
 
-    fetchLeaderboard();
+    openModal("registerModal");
 }
 
-async function fetchLeaderboard() {
-    const container = document.getElementById('leaderboardContainer');
-    if (!container) return;
+function setupForms() {
+    // Registration Submission with Atomic Firestore Transaction
+    document.getElementById("tournamentRegistrationForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!currentUser || !currentSelectedMatch) return;
 
-    try {
-        const q = query(collection(db, 'users'), orderBy('winnings', 'desc'), limit(20));
-        const snap = await getDocs(q);
+        const entryFee = currentSelectedMatch.entryFee;
 
-        if (snap.empty) {
-            container.innerHTML = `<p style="text-align:center; color:var(--text-muted);">Leaderboard is empty.</p>`;
+        try {
+            await runTransaction(db, async (transaction) => {
+                const userRef = doc(db, "users", currentUser.uid);
+                const tournamentRef = doc(db, "tournaments", currentSelectedMatch.id);
+
+                const userDoc = await transaction.get(userRef);
+                const tourneyDoc = await transaction.get(tournamentRef);
+
+                if (!userDoc.exists()) throw new Error("User profile not found!");
+                if (!tourneyDoc.exists()) throw new Error("Tournament does not exist!");
+
+                const userData = userDoc.data();
+                const tourneyData = tourneyDoc.data();
+
+                // Balance Deduct logic (Deposit balance first, then Winnings balance)
+                let deposit = userData.depositBalance || 0;
+                let winnings = userData.winningsBalance || 0;
+                let totalBal = deposit + winnings;
+
+                if (totalBal < entryFee) {
+                    throw new Error("Insufficient Wallet Balance! Add funds to join.");
+                }
+
+                if (tourneyData.registeredSlots >= tourneyData.totalSlots) {
+                    throw new Error("Tournament is already FULL!");
+                }
+
+                let remainingFee = entryFee;
+                if (deposit >= remainingFee) {
+                    deposit -= remainingFee;
+                } else {
+                    remainingFee -= deposit;
+                    deposit = 0;
+                    winnings -= remainingFee;
+                }
+
+                // Execute Atomic Updates
+                transaction.update(userRef, {
+                    depositBalance: deposit,
+                    winningsBalance: winnings
+                });
+
+                transaction.update(tournamentRef, {
+                    registeredSlots: (tourneyData.registeredSlots || 0) + 1
+                });
+
+                // Record Registration Tx
+                const txRef = doc(collection(db, "transactions"));
+                transaction.set(txRef, {
+                    userId: currentUser.uid,
+                    type: "REGISTRATION",
+                    amount: entryFee,
+                    status: "SUCCESS",
+                    tournamentId: currentSelectedMatch.id,
+                    createdAt: serverTimestamp()
+                });
+            });
+
+            alert("Registration Successful! Best of luck!");
+            closeModal("registerModal");
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+
+    // Profile Form Update
+    document.getElementById("profileForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!currentUser) return;
+
+        const ign = document.getElementById("profileIgn").value.trim();
+        const characterUid = document.getElementById("profileUid").value.trim();
+
+        await setDoc(doc(db, "users", currentUser.uid), { ign, characterUid }, { merge: true });
+        alert("In-Game Details Updated!");
+    });
+
+    // Deposit UTR Form Submission
+    document.getElementById("addMoneyForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!currentUser) return;
+
+        const amount = parseFloat(document.getElementById("addAmount").value);
+        const utr = document.getElementById("addUtr").value.trim();
+
+        const txRef = doc(collection(db, "transactions"));
+        await setDoc(txRef, {
+            userId: currentUser.uid,
+            type: "DEPOSIT",
+            amount: amount,
+            utr: utr,
+            status: "PENDING",
+            createdAt: serverTimestamp()
+        });
+
+        alert("Deposit Request Submitted! It will be verified shortly.");
+        closeModal("addMoneyModal");
+        document.getElementById("addMoneyForm").reset();
+    });
+
+    // Withdraw Form Submission
+    document.getElementById("withdrawForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!currentUser) return;
+
+        const amount = parseFloat(document.getElementById("withdrawAmount").value);
+        const method = document.getElementById("withdrawMethod").value;
+        const details = document.getElementById("withdrawDetails").value.trim();
+
+        if (amount > (userProfile?.winningsBalance || 0)) {
+            alert("Insufficient Winnings balance!");
             return;
         }
 
+        const txRef = doc(collection(db, "transactions"));
+        await setDoc(txRef, {
+            userId: currentUser.uid,
+            type: "WITHDRAWAL",
+            amount: amount,
+            method: method,
+            details: details,
+            status: "PENDING",
+            createdAt: serverTimestamp()
+        });
+
+        alert("Withdrawal request created!");
+        closeModal("withdrawModal");
+        document.getElementById("withdrawForm").reset();
+    });
+}
+
+// 5. LEADERBOARD SYSTEM
+function listenLeaderboard() {
+    const q = query(collection(db, "users"), orderBy("winningsBalance", "desc"), limit(10));
+    onSnapshot(q, (snapshot) => {
+        const list = document.getElementById("leaderboardList");
+        list.innerHTML = "";
         let rank = 1;
-        container.innerHTML = snap.docs.map(docSnap => {
-            const data = docSnap.data();
-            const html = `
-                <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <span style="font-weight:bold; font-size:16px; min-width:24px; color:${rank === 1 ? '#ffb700' : rank === 2 ? '#c0c0c0' : rank === 3 ? '#cd7f32' : 'var(--text-muted)'};">#${rank}</span>
+
+        snapshot.forEach((docSnap) => {
+            const u = docSnap.data();
+            let badgeClass = "bg-slate-800 text-slate-400";
+            if (rank === 1) badgeClass = "bg-amber-500 text-slate-950 font-black";
+            if (rank === 2) badgeClass = "bg-slate-300 text-slate-950 font-black";
+            if (rank === 3) badgeClass = "bg-amber-700 text-slate-100 font-black";
+
+            list.innerHTML += `
+                <div class="flex items-center justify-between p-4 bg-slate-950/80 border border-slate-800/80 rounded-xl">
+                    <div class="flex items-center gap-4">
+                        <span class="w-8 h-8 rounded-lg flex items-center justify-center text-xs ${badgeClass}">#${rank}</span>
+                        <img src="${u.photoURL || 'https://via.placeholder.com/150'}" class="w-10 h-10 rounded-xl border border-slate-800">
                         <div>
-                            <strong>${data.displayName || 'Player'}</strong>
-                            <p style="font-size:11px; color:var(--text-muted);">IGN: ${data.ign || 'N/A'}</p>
+                            <div class="font-bold text-slate-100 text-sm">${u.name || 'Anonymous Player'}</div>
+                            <div class="text-[11px] text-slate-500">IGN: ${u.ign || 'N/A'}</div>
                         </div>
                     </div>
-                    <strong style="color:var(--green-glow);">₹${data.winnings || 0}</strong>
+                    <div class="text-right">
+                        <div class="text-xs text-slate-400">Total Winnings</div>
+                        <div class="font-extrabold text-amber-400 text-sm">₹${u.winningsBalance || 0}</div>
+                    </div>
                 </div>
             `;
             rank++;
-            return html;
-        }).join('');
-    } catch (err) {
-        console.error("Leaderboard Error:", err);
-        container.innerHTML = `<p style="color:red; text-align:center;">Failed to load leaderboard.</p>`;
-    }
-}
-
-// --- WALLET PAGE ---
-function renderWalletPage(container) {
-    const depositBal = currentUser ? (currentUser.walletBalance || 0) : 0;
-    const winBal = currentUser ? (currentUser.winnings || 0) : 0;
-
-    container.innerHTML = `
-        <div class="section-title"><i class="fa-solid fa-wallet"></i> Wallet Overview</div>
-        <div class="card card-body">
-            <div class="wallet-stats-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <div class="wallet-stat-card" style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px;">
-                    <span style="font-size:11px; color:var(--text-muted);">Deposit</span>
-                    <h3 style="margin-top:4px;">₹${depositBal}</h3>
-                </div>
-                <div class="wallet-stat-card" style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px;">
-                    <span style="font-size:11px; color:var(--text-muted);">Winnings</span>
-                    <h3 style="margin-top:4px; color:var(--green-glow);">₹${winBal}</h3>
-                </div>
-            </div>
-            
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:16px;">
-                <button class="btn-primary" onclick="window.openDepositModal()">
-                    <i class="fa-solid fa-plus"></i> Add Cash
-                </button>
-                <button class="btn-secondary" onclick="window.openWithdrawModal()">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Withdraw
-                </button>
-            </div>
-        </div>
-
-        <div class="section-title" style="margin-top:20px;"><i class="fa-solid fa-clock-rotate-left"></i> Transactions</div>
-        <div class="card card-body" id="transactionHistory">
-            <div style="text-align:center; padding:15px; color:var(--text-muted);">
-                <i class="fa-solid fa-spinner fa-spin"></i> Loading...
-            </div>
-        </div>
-    `;
-
-    fetchTransactionHistory();
-}
-
-async function fetchTransactionHistory() {
-    const container = document.getElementById('transactionHistory');
-    if (!container || !currentUser) {
-        if (container) container.innerHTML = `<p style="font-size:12px; color:var(--text-muted); text-align:center;">Login to view transactions.</p>`;
-        return;
-    }
-
-    try {
-        const q = query(
-            collection(db, 'transactions'), 
-            where('userId', '==', currentUser.uid),
-            orderBy('createdAt', 'desc'),
-            limit(10)
-        );
-
-        const snap = await getDocs(q);
-
-        if (snap.empty) {
-            container.innerHTML = `<p style="font-size:12px; color:var(--text-muted); text-align:center;">No recent transactions.</p>`;
-            return;
-        }
-
-        container.innerHTML = snap.docs.map(docSnap => {
-            const t = docSnap.data();
-            const isCredit = t.type === 'CREDIT';
-            return `
-                <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <div>
-                        <strong>${t.description || 'Transaction'}</strong>
-                        <p style="font-size:10px; color:var(--text-muted);">${t.status || 'COMPLETED'}</p>
-                    </div>
-                    <strong style="color: ${isCredit ? 'var(--green-glow)' : '#ff4444'};">
-                        ${isCredit ? '+' : '-'}₹${t.amount || 0}
-                    </strong>
-                </div>
-            `;
-        }).join('');
-    } catch (err) {
-        console.error("Transaction History error:", err);
-    }
-}
-
-// --- PROFILE PAGE ---
-function renderProfilePage(container) {
-    if (!currentUser) {
-        container.innerHTML = `
-            <div class="section-title"><i class="fa-solid fa-user"></i> My Account</div>
-            <div class="card card-body" style="text-align:center; padding:30px 15px;">
-                <i class="fa-solid fa-lock" style="font-size:36px; color:var(--accent-orange); margin-bottom:12px;"></i>
-                <h3 style="margin-bottom:6px;">Login Required</h3>
-                <p style="color:var(--text-muted); font-size:12px; margin-bottom:20px;">Matches join karne ke liye profile sync karein.</p>
-                <button class="btn-primary" onclick="window.handleGoogleLogin()">
-                    <i class="fa-brands fa-google"></i> Login with Google
-                </button>
-            </div>
-        `;
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="section-title"><i class="fa-solid fa-user"></i> Profile Settings</div>
-        <div class="card card-body" style="text-align:center;">
-            <div class="profile-avatar-wrap">
-                <img src="${currentUser.photoURL || 'https://via.placeholder.com/90'}" class="profile-avatar" style="width:80px; height:80px; border-radius:50%; border:2px solid var(--accent-orange);" alt="Avatar">
-            </div>
-            <h3 style="margin-top:8px;">${currentUser.displayName || 'Player'}</h3>
-            <p style="font-size:12px; color:var(--text-muted);">${currentUser.email || '-'}</p>
-
-            <div class="form-group" style="margin-top:20px; text-align:left;">
-                <label>In-Game Name (IGN)</label>
-                <input type="text" id="profileIgn" placeholder="e.g. BOOYAH_BOSS" value="${currentUser.ign || ''}">
-            </div>
-            <div class="form-group" style="text-align:left;">
-                <label>Free Fire UID</label>
-                <input type="text" id="profileUid" placeholder="e.g. 987654321" value="${currentUser.gameUid || ''}">
-            </div>
-
-            <button class="btn-primary" onclick="window.saveProfileData()" style="width:100%; margin-top:10px;">Save Changes</button>
-            <button class="btn-secondary" onclick="window.handleLogout()" style="width:100%; margin-top:10px;">Logout</button>
-        </div>
-    `;
-}
-
-// ==========================================
-// 4. TRANSACTION & REGISTRATION HANDLERS
-// ==========================================
-window.viewMatchDetails = function(matchId) {
-    selectedMatch = currentMatches.find(m => m.id === matchId);
-    if (!selectedMatch) return;
-
-    document.getElementById('detBanner').src = selectedMatch.banner || 'https://via.placeholder.com/600x200/14171f/ff5500?text=Booyah+HUB';
-    document.getElementById('detTitle').innerText = selectedMatch.title || selectedMatch.name;
-    document.getElementById('detMode').innerText = `${selectedMatch.mode || 'SOLO'} | ${selectedMatch.map ? selectedMatch.map.toUpperCase() : 'BERMUDA'}`;
-    document.getElementById('detPrize').innerText = `₹${selectedMatch.prizePool || 0}`;
-    document.getElementById('detEntry').innerText = `₹${selectedMatch.entryFee || 0}`;
-    document.getElementById('payout1').innerText = `₹${selectedMatch.prize1 || Math.round((selectedMatch.prizePool || 0) * 0.5)}`;
-    document.getElementById('payout2').innerText = `₹${selectedMatch.prize2 || Math.round((selectedMatch.prizePool || 0) * 0.25)}`;
-    document.getElementById('payoutKill').innerText = `₹${selectedMatch.perKill || 0}`;
-    document.getElementById('detSlotText').innerText = `${selectedMatch.filledSlots || 0}/${selectedMatch.totalSlots || 48} Slots Filled`;
-
-    const seatsGrid = document.getElementById('seatsGrid');
-    if (seatsGrid) {
-        seatsGrid.innerHTML = '';
-        const total = selectedMatch.totalSlots || 48;
-        const filled = selectedMatch.filledSlots || 0;
-        for (let i = 1; i <= total; i++) {
-            seatsGrid.innerHTML += `<div class="seat-dot ${i <= filled ? 'filled' : ''}">${i}</div>`;
-        }
-    }
-
-    const joinBtn = document.getElementById('detJoinBtn');
-    if (joinBtn) {
-        joinBtn.onclick = () => {
-            window.closeModal('detailsModal');
-            window.openJoinModal();
-        };
-    }
-
-    window.openModal('detailsModal');
-};
-
-window.openJoinModal = function() {
-    if (!currentUser) {
-        alert("Pehle Google login karein!");
-        window.navigate('Profile');
-        return;
-    }
-
-    if (!selectedMatch) return;
-
-    document.getElementById('modalMatchTitle').innerText = selectedMatch.title || selectedMatch.name;
-    document.getElementById('modalMatchMode').innerText = `MODE: ${selectedMatch.mode || 'SOLO'} • ENTRY FEE: ₹${selectedMatch.entryFee || 0}`;
-
-    const container = document.getElementById('dynamicFormContainer');
-    let formHTML = '';
-
-    const mode = selectedMatch.mode || 'SOLO';
-    const count = mode === 'SOLO' ? 1 : mode === 'DUO' ? 2 : 4;
-    for (let i = 1; i <= count; i++) {
-        formHTML += `
-            <div class="player-form-block" style="margin-bottom:12px; background:rgba(255,255,255,0.02); padding:10px; border-radius:6px;">
-                <h4 style="margin-bottom:8px; font-size:13px; color:var(--accent-orange);">Player ${i} Info</h4>
-                <div class="form-group">
-                    <label>IGN</label>
-                    <input type="text" id="ignP${i}" placeholder="In-Game Name" value="${i === 1 ? (currentUser.ign || '') : ''}">
-                </div>
-                <div class="form-group">
-                    <label>Game UID</label>
-                    <input type="text" id="uidP${i}" placeholder="Numeric UID" value="${i === 1 ? (currentUser.gameUid || '') : ''}">
-                </div>
-            </div>
-        `;
-    }
-
-    container.innerHTML = formHTML;
-    window.openModal('joinModal');
-};
-
-window.confirmJoin = async function() {
-    if (!currentUser || !selectedMatch) return;
-
-    const entryFee = Number(selectedMatch.entryFee || 0);
-    const totalBal = (currentUser.walletBalance || 0) + (currentUser.winnings || 0);
-
-    if (totalBal < entryFee) {
-        alert(`Low Balance! Fee: ₹${entryFee}, Current Balance: ₹${totalBal}.`);
-        window.closeModal('joinModal');
-        window.navigate('Wallet');
-        return;
-    }
-
-    const mode = selectedMatch.mode || 'SOLO';
-    const count = mode === 'SOLO' ? 1 : mode === 'DUO' ? 2 : 4;
-    let players = [];
-
-    for (let i = 1; i <= count; i++) {
-        const ign = document.getElementById(`ignP${i}`)?.value?.trim();
-        const uid = document.getElementById(`uidP${i}`)?.value?.trim();
-
-        if (!ign || !uid) {
-            alert(`Player ${i} details fill karein!`);
-            return;
-        }
-        players.push({ ign, gameUid: uid });
-    }
-
-    try {
-        await runTransaction(db, async (transaction) => {
-            const matchRef = doc(db, 'tournaments', selectedMatch.id);
-            const userRef = doc(db, 'users', currentUser.uid);
-
-            const matchDoc = await transaction.get(matchRef);
-            const userDoc = await transaction.get(userRef);
-
-            if (!matchDoc.exists()) throw new Error("Match archive ho chuka hai.");
-
-            const matchData = matchDoc.data();
-            const userData = userDoc.data();
-
-            const currentSlots = matchData.filledSlots || 0;
-            const maxSlots = matchData.totalSlots || 48;
-
-            if (currentSlots >= maxSlots) throw new Error("Match already full!");
-
-            let currentDeposit = userData.walletBalance || 0;
-            let currentWinnings = userData.winnings || 0;
-
-            if ((currentDeposit + currentWinnings) < entryFee) throw new Error("Insufficient balance!");
-
-            if (currentDeposit >= entryFee) {
-                currentDeposit -= entryFee;
-            } else {
-                const rem = entryFee - currentDeposit;
-                currentDeposit = 0;
-                currentWinnings -= rem;
-            }
-
-            transaction.update(userRef, { walletBalance: currentDeposit, winnings: currentWinnings });
-            transaction.update(matchRef, { filledSlots: currentSlots + 1 });
-
-            const regRef = doc(collection(db, 'registrations'));
-            transaction.set(regRef, {
-                tournamentId: selectedMatch.id,
-                userId: currentUser.uid,
-                players: players,
-                entryFee: entryFee,
-                joinedAt: serverTimestamp()
-            });
-
-            const txnRef = doc(collection(db, 'transactions'));
-            transaction.set(txnRef, {
-                userId: currentUser.uid,
-                amount: entryFee,
-                type: 'DEBIT',
-                description: `Entry: ${matchData.title || matchData.name}`,
-                status: 'SUCCESS',
-                createdAt: serverTimestamp()
-            });
         });
-
-        alert("Match Join Ho Gaya Hai!");
-        window.closeModal('joinModal');
-    } catch (err) {
-        alert("Failed: " + err.message);
-    }
-};
-
-window.saveProfileData = async function() {
-    const ign = document.getElementById('profileIgn').value.trim();
-    const uid = document.getElementById('profileUid').value.trim();
-
-    if (!ign || !uid) { alert("Dono fields required hain!"); return; }
-
-    if (currentUser?.uid) {
-        await updateDoc(doc(db, 'users', currentUser.uid), { ign, gameUid: uid });
-        alert("Profile Update Saved!");
-    }
-};
-
-window.handleGoogleLogin = async function() {
-    try {
-        await signInWithPopup(auth, googleProvider);
-        window.navigate('Profile');
-    } catch (err) {
-        alert("Login Error: " + err.message);
-    }
-};
-
-window.handleLogout = async function() {
-    await signOut(auth);
-    window.navigate('Home');
-};
-
-function updateHeaderWalletDisplay(amount) {
-    const walletDisplay = document.getElementById('headerWalletDisplay');
-    if (walletDisplay) walletDisplay.innerText = `₹${amount}`;
+    });
 }
 
-window.filterMatches = function() {
-    const queryStr = document.getElementById('searchInput')?.value.toLowerCase();
-    const filtered = currentMatches.filter(m => 
-        (m.title || m.name || '').toLowerCase().includes(queryStr) || 
-        (m.mode || '').toLowerCase().includes(queryStr)
-    );
-    renderMatchCards(filtered, document.getElementById('matchesListContainer'));
+// TAB NAVIGATION HELPERS
+window.switchTab = (tabName) => {
+    ['tournaments', 'wallet', 'leaderboard', 'profile'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add("hidden");
+        const btn = document.getElementById(`tab-${t}`);
+        btn.className = "tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap";
+    });
+
+    document.getElementById(`view-${tabName}`).classList.remove("hidden");
+    const activeBtn = document.getElementById(`tab-${tabName}`);
+    activeBtn.className = "tab-btn active-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap";
 };
 
-window.filterByTag = function(tag, chipBtn) {
-    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-    if (chipBtn) chipBtn.classList.add('active');
-
-    if (tag === 'ALL') {
-        renderMatchCards(currentMatches, document.getElementById('matchesListContainer'));
-    } else {
-        const filtered = currentMatches.filter(m => (m.mode || '').toUpperCase() === tag);
-        renderMatchCards(filtered, document.getElementById('matchesListContainer'));
-    }
-};
-
-// Initial App Launch
-document.addEventListener("DOMContentLoaded", () => {
-    window.navigate('Home');
-});
+// MODAL UTILITIES
+window.openModal = (id) => document.getElementById(id).classList.remove("hidden");
+window.closeModal = (id) => document.getElementById(id).classList.add("hidden");
