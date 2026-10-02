@@ -29,25 +29,36 @@ let tournamentsData = [];
 let activeModeFilter = 'ALL';
 let currentSelectedMatch = null;
 
-// EXPLICIT GLOBAL BINDINGS FOR INLINE HTML ONCLICK HANDLERS
+// EXPLICIT GLOBAL BINDINGS FOR INLINE HTML ONCLICK HANDLERS (DESKTOP + MOBILE BOTTOM NAV SYNC)
 window.switchTab = function(tabName) {
     const tabs = ['tournaments', 'wallet', 'leaderboard', 'profile'];
+    
     tabs.forEach(t => {
         const viewEl = document.getElementById(`view-${t}`);
         const btnEl = document.getElementById(`tab-${t}`);
+        const mobileBtnEl = document.getElementById(`bottom-nav-${t}`);
         
         if (viewEl) viewEl.classList.add("hidden");
+        
         if (btnEl) {
             btnEl.className = "tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap";
+        }
+        if (mobileBtnEl) {
+            mobileBtnEl.className = "mobile-nav-btn inactive-mobile-tab py-1.5 rounded-xl flex flex-col items-center justify-center gap-1 transition";
         }
     });
 
     const activeView = document.getElementById(`view-${tabName}`);
     const activeBtn = document.getElementById(`tab-${tabName}`);
+    const activeMobileBtn = document.getElementById(`bottom-nav-${tabName}`);
 
     if (activeView) activeView.classList.remove("hidden");
+    
     if (activeBtn) {
         activeBtn.className = "tab-btn active-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap";
+    }
+    if (activeMobileBtn) {
+        activeMobileBtn.className = "mobile-nav-btn active-mobile-tab py-1.5 rounded-xl flex flex-col items-center justify-center gap-1 transition";
     }
 };
 
@@ -312,7 +323,7 @@ function renderTournaments() {
                     </div>
                 </div>
                 <div class="p-5 pt-0">
-                    <button onclick="openMatchDetails('${t.id}')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-2">
+                    <button onclick="openMatchDetails('${t.id}')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-2 active:scale-95">
                         View & Join <i class="fa-solid fa-arrow-right text-[10px]"></i>
                     </button>
                 </div>
