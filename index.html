@@ -3,44 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booyah HUB - Player Portal</title>
-    
-    <!-- FontAwesome & Custom Stylesheet -->
+    <title>Booyah HUB - Esports Portal</title>
+    <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
-
-    <!-- App Engine Script -->
-    <script type="module" src="apps.js"></script>
 </head>
 <body>
 
     <!-- Header Navigation -->
-    <header class="app-header">
-        <div class="header-brand">
+    <header class="main-header">
+        <div class="logo">
             <i class="fa-solid fa-gamepad logo-icon"></i>
-            <h2>Booyah <span>HUB</span></h2>
+            <span>BOOYAH<span class="highlight">HUB</span></span>
         </div>
-        <div class="header-right">
-            <button class="notif-btn" id="notifToggle" onclick="window.toggleNotif()" title="Notifications">
-                <i class="fa-solid fa-bell"></i>
-            </button>
-            <div class="header-wallet-badge" onclick="window.navigate('Wallet')">
+        <div class="header-actions">
+            <div class="wallet-badge" onclick="window.navigate('Wallet')">
                 <i class="fa-solid fa-wallet"></i>
                 <span id="headerWalletDisplay">₹0</span>
             </div>
+            <button class="icon-btn" onclick="window.toggleNotif()">
+                <i class="fa-solid fa-bell"></i>
+            </button>
         </div>
     </header>
 
-    <!-- Announcement Bar -->
-    <div class="announcement-bar">
-        <div class="ticker-text" id="tickerContent">
-            🔥 Booyah HUB Tournament Registration Open! Join now and win big!
-        </div>
-    </div>
-
-    <!-- Main Dynamic Content Box -->
-    <main id="content" class="main-container">
-        <!-- Dynamic Output via apps.js -->
+    <!-- Main Dynamic Content Container -->
+    <main id="content" class="app-content">
+        <!-- Content will be injected dynamically by app.js -->
     </main>
 
     <!-- Bottom Navigation Bar -->
@@ -51,7 +43,7 @@
         </button>
         <button class="nav-btn" onclick="window.navigate('Leaderboard', this)">
             <i class="fa-solid fa-trophy"></i>
-            <span>Leaders</span>
+            <span>Rank</span>
         </button>
         <button class="nav-btn" onclick="window.navigate('Wallet', this)">
             <i class="fa-solid fa-wallet"></i>
@@ -63,109 +55,114 @@
         </button>
     </nav>
 
-    <!-- Modal 1: Tournament Details -->
+    <!-- ========================================== -->
+    <!-- MODALS SECTION -->
+    <!-- ========================================== -->
+
+    <!-- Tournament Details Modal -->
     <div class="modal" id="detailsModal">
         <div class="modal-content">
-            <button class="modal-close" onclick="window.closeModal('detailsModal')">&times;</button>
-            <img id="detBanner" class="modal-banner" src="" alt="Tournament Banner">
+            <div class="modal-header">
+                <h3>Tournament Details</h3>
+                <span class="close-btn" onclick="window.closeModal('detailsModal')">&times;</span>
+            </div>
             <div class="modal-body">
-                <h3 id="detTitle" class="modal-title">Match Details</h3>
-                <p id="detMode" class="modal-subtitle">SOLO | BERMUDA</p>
-                
-                <div class="modal-stats-grid">
-                    <div class="m-stat-box">
-                        <span>PRIZE POOL</span>
-                        <strong id="detPrize">₹0</strong>
-                    </div>
-                    <div class="m-stat-box">
-                        <span>ENTRY FEE</span>
-                        <strong id="detEntry">₹0</strong>
-                    </div>
+                <img id="detBanner" src="" class="card-banner" alt="Tournament Banner">
+                <h2 id="detTitle" style="margin-top:10px;">-</h2>
+                <p id="detMode" style="color:var(--text-muted); font-size:12px; font-weight:bold;">-</p>
+
+                <div class="card-details" style="margin-top:15px;">
+                    <div class="detail-item"><span>PRIZE POOL</span><strong id="detPrize">₹0</strong></div>
+                    <div class="detail-item"><span>ENTRY FEE</span><strong id="detEntry">₹0</strong></div>
+                    <div class="detail-item"><span>PER KILL</span><strong id="payoutKill">₹0</strong></div>
                 </div>
 
-                <div class="payout-card">
-                    <h4>Payout Structure</h4>
+                <div style="margin-top:15px;">
+                    <div class="section-title"><i class="fa-solid fa-award"></i> Prize Distribution</div>
                     <div class="payout-row"><span>#1 Winner</span><strong id="payout1">₹0</strong></div>
                     <div class="payout-row"><span>#2 Runner Up</span><strong id="payout2">₹0</strong></div>
-                    <div class="payout-row"><span>Per Kill Bonus</span><strong id="payoutKill">₹0</strong></div>
                 </div>
 
-                <div class="seats-section">
-                    <div class="seats-header">
-                        <span>Room Seats</span>
-                        <span id="detSlotText">0/48 Filled</span>
+                <div style="margin-top:15px;">
+                    <div class="slot-info">
+                        <span>Slots Tracker</span>
+                        <span id="detSlotText">0/0</span>
                     </div>
                     <div class="seats-grid" id="seatsGrid"></div>
                 </div>
 
-                <div class="modal-actions">
-                    <button class="btn-secondary" id="detShareBtn" onclick="alert('Link Copied!')"><i class="fa-solid fa-share-nodes"></i> Share</button>
-                    <button class="btn-primary" id="detJoinBtn">Register Now</button>
-                </div>
+                <button class="btn-primary" id="detJoinBtn" style="margin-top:20px;">Register Now</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal 2: Dynamic Player Join Modal -->
+    <!-- Join Tournament Form Modal -->
     <div class="modal" id="joinModal">
         <div class="modal-content">
-            <button class="modal-close" onclick="window.closeModal('joinModal')">&times;</button>
+            <div class="modal-header">
+                <h3>Match Registration</h3>
+                <span class="close-btn" onclick="window.closeModal('joinModal')">&times;</span>
+            </div>
             <div class="modal-body">
-                <h3 id="modalMatchTitle" class="modal-title">Match Registration</h3>
-                <p id="modalMatchMode" class="modal-subtitle">MODE: SOLO • ENTRY ₹0</p>
-                
-                <div id="dynamicFormContainer"></div>
-
-                <button class="btn-primary" style="margin-top:15px;" onclick="window.confirmJoin()">Confirm & Pay Entry</button>
+                <h4 id="modalMatchTitle">-</h4>
+                <p id="modalMatchMode" style="color:var(--text-muted); font-size:12px;">-</p>
+                <div id="dynamicFormContainer" style="margin-top:15px;"></div>
+                <button class="btn-primary" onclick="window.confirmJoin()" style="margin-top:15px;">Confirm & Join</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal 3: Deposit Modal -->
+    <!-- Deposit Cash Modal -->
     <div class="modal" id="depositModal">
         <div class="modal-content">
-            <button class="modal-close" onclick="window.closeModal('depositModal')">&times;</button>
+            <div class="modal-header">
+                <h3>Add Cash to Wallet</h3>
+                <span class="close-btn" onclick="window.closeModal('depositModal')">&times;</span>
+            </div>
             <div class="modal-body">
-                <h3 class="modal-title"><i class="fa-solid fa-money-bill-wave"></i> Deposit Funds</h3>
-                <div class="form-group" style="margin-top:15px;">
+                <div class="form-group">
                     <label>Amount (₹)</label>
-                    <input type="number" id="depositAmountInput" min="10" max="50000" placeholder="Minimum ₹10">
+                    <input type="number" id="depositAmountInput" placeholder="Min ₹10" min="10">
                 </div>
-                <button class="btn-primary" onclick="window.startDirectUpiPayment()">Pay via UPI App</button>
+                <button class="btn-primary" onclick="window.startDirectUpiPayment()">Pay via UPI</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal 4: Verify UTR Modal -->
+    <!-- Verify UPI UTR Modal -->
     <div class="modal" id="verifyUpiModal">
         <div class="modal-content">
-            <button class="modal-close" onclick="window.closeModal('verifyUpiModal')">&times;</button>
+            <div class="modal-header">
+                <h3>Verify Payment</h3>
+                <span class="close-btn" onclick="window.closeModal('verifyUpiModal')">&times;</span>
+            </div>
             <div class="modal-body">
-                <h3 class="modal-title">Payment Verification</h3>
-                <p class="modal-subtitle">Payment complete hone ke baad 12-Digit UTR/Ref Number enter karein.</p>
-                <div class="form-group" style="margin-top:15px;">
+                <p style="font-size:12px; color:var(--text-muted);">Payment complete karne ke baad 12-digit UPI Reference / UTR Number enter karein.</p>
+                <div class="form-group" style="margin-top:10px;">
                     <label>12-Digit UTR Number</label>
-                    <input type="text" id="upiUtrInput" maxlength="12" inputmode="numeric" placeholder="e.g. 302910XXXXXX">
+                    <input type="text" id="upiUtrInput" placeholder="e.g. 302918273645" maxlength="12">
                 </div>
                 <button class="btn-primary" onclick="window.submitUpiVerification()">Submit Verification</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal 5: Withdraw Modal -->
+    <!-- Withdraw Cash Modal -->
     <div class="modal" id="withdrawModal">
         <div class="modal-content">
-            <button class="modal-close" onclick="window.closeModal('withdrawModal')">&times;</button>
+            <div class="modal-header">
+                <h3>Withdraw Winnings</h3>
+                <span class="close-btn" onclick="window.closeModal('withdrawModal')">&times;</span>
+            </div>
             <div class="modal-body">
-                <h3 class="modal-title"><i class="fa-solid fa-building-columns"></i> Withdraw Winnings</h3>
-                <div class="form-group" style="margin-top:12px;">
-                    <label>Withdrawal Amount (Min ₹50)</label>
-                    <input type="number" id="withdrawAmountInput" min="50" placeholder="Minimum ₹50">
+                <div class="form-group">
+                    <label>Amount (₹)</label>
+                    <input type="number" id="withdrawAmountInput" placeholder="Min ₹50" min="50">
                 </div>
                 <div class="form-group">
-                    <label>Transfer Method</label>
+                    <label>Withdrawal Method</label>
                     <select id="withdrawMethodSelect" onchange="window.handleWithdrawMethodChange()">
-                        <option value="UPI">UPI Transfer</option>
+                        <option value="UPI">UPI ID</option>
                         <option value="BANK">Bank Account</option>
                     </select>
                 </div>
@@ -173,29 +170,27 @@
                 <div id="withdrawUpiFields">
                     <div class="form-group">
                         <label>UPI ID</label>
-                        <input type="text" id="withdrawUpiId" placeholder="e.g. username@upi">
+                        <input type="text" placeholder="example@upi">
                     </div>
                 </div>
 
                 <div id="withdrawBankFields" style="display:none;">
                     <div class="form-group">
-                        <label>Bank Name</label>
-                        <input type="text" id="withdrawBankName" placeholder="Bank Name">
-                    </div>
-                    <div class="form-group">
                         <label>Account Number</label>
-                        <input type="text" id="withdrawAccNo" inputmode="numeric" placeholder="Account Number">
+                        <input type="text" placeholder="A/C Number">
                     </div>
                     <div class="form-group">
                         <label>IFSC Code</label>
-                        <input type="text" id="withdrawIfsc" style="text-transform:uppercase" placeholder="IFSC Code">
+                        <input type="text" placeholder="IFSC Code">
                     </div>
                 </div>
 
-                <button class="btn-primary" style="margin-top:10px;" onclick="window.submitWithdrawalRequest()">Submit Request</button>
+                <button class="btn-primary" onclick="window.submitWithdrawalRequest()">Request Withdrawal</button>
             </div>
         </div>
     </div>
 
+    <!-- Module JS Script -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>
