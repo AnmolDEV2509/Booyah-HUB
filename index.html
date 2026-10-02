@@ -2,71 +2,78 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booyah HUB - Esports Arena</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Booyah HUB - Free Fire Esports</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom Style -->
-    <link rel="stylesheet" href="style.css">
+    <!-- Custom Style Reference -->
+    <link rel="stylesheet" href="style_2.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-orange-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-20 sm:pb-6 selection:bg-orange-500 selection:text-white">
 
-    <!-- Navbar -->
-    <nav class="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center font-black text-xl shadow-lg shadow-orange-500/20">
-                    <i class="fa-solid font-black fa-trophy text-slate-950"></i>
+    <!-- TOP NAVBAR (MOBILE RESPONSIVE) -->
+    <nav class="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            
+            <!-- LOGO -->
+            <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
+                    <i class="fa-solid fa-fire text-slate-950 text-lg font-black"></i>
                 </div>
-                <span class="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">BOOYAH HUB</span>
+                <span class="font-black text-lg tracking-wider text-slate-100 uppercase">BOOYAH<span class="text-orange-500">HUB</span></span>
             </div>
 
-            <!-- Auth & Wallet Nav Header -->
-            <div id="navRightSection" class="flex items-center gap-3">
-                <button id="googleLoginBtn" class="bg-orange-500 hover:bg-orange-600 text-slate-950 font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-lg shadow-orange-500/20">
-                    <i class="fa-brands fa-google"></i> Login
+            <!-- ACTION CONTROLS / PROFILE -->
+            <div class="flex items-center gap-2">
+                <!-- WALLET BADGE -->
+                <button onclick="switchTab('wallet')" class="bg-slate-900 border border-slate-800 hover:border-orange-500/50 px-3 py-1.5 rounded-xl flex items-center gap-2 transition">
+                    <i class="fa-solid fa-wallet text-orange-400 text-xs"></i>
+                    <span id="navWalletBalance" class="text-xs font-bold text-slate-200">₹0</span>
                 </button>
-                <div id="userProfileNav" class="hidden flex items-center gap-3">
-                    <div id="walletNavChip" onclick="switchTab('wallet')" class="cursor-pointer bg-slate-800 hover:bg-slate-700/80 border border-slate-700/60 px-3 py-1.5 rounded-xl flex items-center gap-2 transition">
-                        <i class="fa-solid fa-wallet text-amber-400"></i>
-                        <span id="navWalletBalance" class="text-xs sm:text-sm font-semibold text-slate-200">₹0</span>
-                    </div>
-                    <img id="userAvatar" src="" alt="Avatar" class="w-9 h-9 rounded-xl border border-orange-500/50 cursor-pointer" onclick="switchTab('profile')">
+
+                <!-- GOOGLE LOGIN -->
+                <button id="googleLoginBtn" class="bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-extrabold text-xs px-3 py-2 rounded-xl transition shadow-md shadow-orange-500/20 active:scale-95">
+                    <i class="fa-brands fa-google mr-1"></i> Login
+                </button>
+
+                <!-- USER AVATAR (LOGGED IN) -->
+                <div id="userProfileNav" class="hidden cursor-pointer" onclick="switchTab('profile')">
+                    <img id="userAvatar" src="" class="w-9 h-9 rounded-xl border-2 border-orange-500/50 object-cover">
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- Main Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- MAIN APP CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 pt-4">
 
-        <!-- Tab Navigation Bar -->
-        <div class="flex items-center gap-2 overflow-x-auto pb-4 mb-6 border-b border-slate-800/80 scrollbar-none">
-            <button onclick="switchTab('tournaments')" id="tab-tournaments" class="tab-btn active-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-gamepad"></i> Tournaments
+        <!-- HORIZONTAL SWIPEABLE NAVIGATION (MOBILE FRIENDLY) -->
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 mb-4">
+            <button id="tab-tournaments" onclick="switchTab('tournaments')" class="tab-btn active-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-trophy text-xs"></i> Matches
             </button>
-            <button onclick="switchTab('wallet')" id="tab-wallet" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-wallet"></i> Wallet
+            <button id="tab-wallet" onclick="switchTab('wallet')" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-wallet text-xs"></i> Wallet
             </button>
-            <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-ranking-star"></i> Leaderboard
+            <button id="tab-leaderboard" onclick="switchTab('leaderboard')" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-ranking-star text-xs"></i> Leaderboard
             </button>
-            <button onclick="switchTab('profile')" id="tab-profile" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
-                <i class="fa-solid fa-user-gear"></i> Profile
+            <button id="tab-profile" onclick="switchTab('profile')" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-user text-xs"></i> Profile
             </button>
         </div>
 
-        <!-- SECTION 1: TOURNAMENTS VIEW -->
-        <section id="view-tournaments" class="space-y-6">
-            <!-- Search & Filters -->
-            <div class="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center">
+        <!-- VIEW 1: TOURNAMENTS GRID -->
+        <section id="view-tournaments" class="space-y-4">
+            <!-- SEARCH AND FILTER CHIPS -->
+            <div class="flex flex-col sm:flex-row gap-3">
                 <div class="relative flex-1">
-                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
-                    <input type="text" id="tournamentSearch" placeholder="Search tournaments by name..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-orange-500 text-slate-200 placeholder-slate-500">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                    <input type="text" id="tournamentSearch" placeholder="Search tournaments..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-orange-500/50">
                 </div>
-                <div class="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
+                <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
                     <button onclick="filterMode('ALL')" class="filter-chip active-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition">ALL</button>
                     <button onclick="filterMode('SOLO')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition">SOLO</button>
                     <button onclick="filterMode('DUO')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition">DUO</button>
@@ -74,218 +81,222 @@
                 </div>
             </div>
 
-            <!-- Tournament Cards Grid -->
-            <div id="tournamentsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Dynamically rendered by app.js -->
+            <!-- DYNAMIC GRID -->
+            <div id="tournamentsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Firestore documents injected here -->
             </div>
         </section>
 
-        <!-- SECTION 2: WALLET VIEW -->
-        <section id="view-wallet" class="hidden space-y-6">
-            <!-- Balances Cards -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm">
-                    <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Deposit Balance</div>
-                    <div id="depositBalanceText" class="text-3xl font-extrabold text-slate-100">₹0</div>
-                    <button onclick="openModal('addMoneyModal')" class="mt-4 w-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 font-semibold py-2 rounded-xl border border-orange-500/30 transition text-xs flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-plus"></i> Add Money
-                    </button>
+        <!-- VIEW 2: WALLET -->
+        <section id="view-wallet" class="hidden space-y-4">
+            <!-- BALANCE STAT CARDS -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
+                    <span class="text-xs text-slate-400 font-bold uppercase">Total Balance</span>
+                    <div id="totalBalanceText" class="text-2xl font-black text-slate-100 mt-1">₹0</div>
                 </div>
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm">
-                    <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Winnings Balance</div>
-                    <div id="winningsBalanceText" class="text-3xl font-extrabold text-amber-400">₹0</div>
-                    <button onclick="openModal('withdrawModal')" class="mt-4 w-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-semibold py-2 rounded-xl border border-amber-500/30 transition text-xs flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Withdraw Winnings
-                    </button>
+                <div class="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
+                    <span class="text-xs text-slate-400 font-bold uppercase">Deposit Cash</span>
+                    <div id="depositBalanceText" class="text-2xl font-black text-amber-400 mt-1">₹0</div>
                 </div>
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm sm:col-span-2 lg:col-span-1">
-                    <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Total Balance</div>
-                    <div id="totalBalanceText" class="text-3xl font-extrabold text-emerald-400">₹0</div>
-                    <p class="text-xs text-slate-500 mt-5">Winnings directly bank account ya UPI me transfer kar sakte ho.</p>
+                <div class="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
+                    <span class="text-xs text-slate-400 font-bold uppercase">Winnings Cash</span>
+                    <div id="winningsBalanceText" class="text-2xl font-black text-emerald-400 mt-1">₹0</div>
                 </div>
             </div>
 
-            <!-- Transaction History -->
-            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm">
-                <h3 class="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-receipt text-orange-400"></i> Recent Transactions
-                </h3>
+            <!-- WALLET ACTION BUTTONS -->
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="openModal('addMoneyModal')" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10">
+                    <i class="fa-solid fa-plus"></i> Add Deposit
+                </button>
+                <button onclick="openModal('withdrawModal')" class="bg-slate-800 hover:bg-slate-700 text-slate-100 font-extrabold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 border border-slate-700">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Withdraw
+                </button>
+            </div>
+
+            <!-- TRANSACTIONS TABLE -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+                <div class="p-4 border-b border-slate-800">
+                    <h3 class="font-bold text-slate-200 text-sm">Recent Transactions</h3>
+                </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs sm:text-sm text-slate-300">
-                        <thead class="bg-slate-800/50 text-slate-400 uppercase text-[10px] font-bold">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-950 text-slate-500 font-bold border-b border-slate-800">
                             <tr>
-                                <th class="p-3 rounded-l-lg">Type</th>
+                                <th class="p-3">Type</th>
                                 <th class="p-3">Amount</th>
                                 <th class="p-3">Status</th>
-                                <th class="p-3 rounded-r-lg">Date</th>
+                                <th class="p-3">Date</th>
                             </tr>
                         </thead>
                         <tbody id="transactionHistoryTable" class="divide-y divide-slate-800/50">
-                            <!-- Dynamically loaded -->
+                            <!-- Injected dynamically -->
                         </tbody>
                     </table>
                 </div>
             </div>
         </section>
 
-        <!-- SECTION 3: LEADERBOARD VIEW -->
-        <section id="view-leaderboard" class="hidden space-y-6">
-            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm">
-                <h3 class="text-xl font-bold mb-6 text-slate-100 flex items-center gap-2">
-                    <i class="fa-solid fa-trophy text-amber-400"></i> Global Top Champions
-                </h3>
-                <div id="leaderboardList" class="space-y-3">
-                    <!-- Dynamically loaded -->
-                </div>
+        <!-- VIEW 3: LEADERBOARD -->
+        <section id="view-leaderboard" class="hidden space-y-3">
+            <h2 class="text-base font-bold text-slate-200">Top Earners</h2>
+            <div id="leaderboardList" class="space-y-2">
+                <!-- Injected dynamically -->
             </div>
         </section>
 
-        <!-- SECTION 4: PROFILE VIEW -->
-        <section id="view-profile" class="hidden space-y-6">
-            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm max-w-xl mx-auto space-y-6">
-                <div class="flex items-center gap-4 border-b border-slate-800 pb-6">
-                    <img id="profileCardAvatar" src="" class="w-16 h-16 rounded-2xl border-2 border-orange-500">
-                    <div>
-                        <h2 id="profileCardName" class="text-xl font-bold text-slate-100">Guest User</h2>
-                        <p id="profileCardEmail" class="text-xs text-slate-400">Login to save details</p>
-                    </div>
+        <!-- VIEW 4: PROFILE -->
+        <section id="view-profile" class="hidden space-y-4">
+            <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl flex items-center gap-4">
+                <img id="profileCardAvatar" src="" class="w-14 h-14 rounded-2xl border-2 border-orange-500/50 object-cover">
+                <div>
+                    <h2 id="profileCardName" class="font-bold text-slate-100 text-base">Gamer</h2>
+                    <p id="profileCardEmail" class="text-xs text-slate-400">gamer@gmail.com</p>
                 </div>
-
-                <form id="profileForm" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">In-Game Name (IGN)</label>
-                        <input type="text" id="profileIgn" placeholder="e.g., OP_GAMER_99" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-orange-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">Free Fire Character UID</label>
-                        <input type="text" id="profileUid" placeholder="e.g., 1029384756" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-orange-500">
-                    </div>
-                    <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg shadow-orange-500/20 text-sm">
-                        Save Game Credentials
-                    </button>
-                </form>
             </div>
+
+            <form id="profileForm" class="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl space-y-4">
+                <h3 class="font-bold text-slate-200 text-sm border-b border-slate-800 pb-2">Free Fire Credentials</h3>
+                <div class="space-y-2">
+                    <label class="text-xs text-slate-400 font-semibold">In-Game Name (IGN)</label>
+                    <input type="text" id="profileIgn" placeholder="e.g. OP_GAMER_99" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs text-slate-400 font-semibold">Character UID</label>
+                    <input type="text" id="profileUid" placeholder="e.g. 123456789" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                </div>
+                <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-slate-950 font-extrabold py-2.5 rounded-xl transition text-xs shadow-lg shadow-orange-500/20">
+                    Save Details
+                </button>
+            </form>
         </section>
 
     </main>
 
-    <!-- MODAL 1: MATCH DETAILS & SEAT GRID VISUALIZER -->
-    <div id="matchModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                <h3 id="modalMatchTitle" class="font-bold text-lg text-slate-100">Match Details</h3>
-                <button onclick="closeModal('matchModal')" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <div class="p-6 overflow-y-auto space-y-6 flex-1">
-                <div class="grid grid-cols-3 gap-3 text-center">
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                        <span class="text-[10px] text-slate-500 block uppercase font-bold">Prize Pool</span>
-                        <span id="modalPrizePool" class="font-bold text-amber-400 text-sm sm:text-base">₹0</span>
-                    </div>
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                        <span class="text-[10px] text-slate-500 block uppercase font-bold">Per Kill</span>
-                        <span id="modalPerKill" class="font-bold text-emerald-400 text-sm sm:text-base">₹0</span>
-                    </div>
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                        <span class="text-[10px] text-slate-500 block uppercase font-bold">Entry Fee</span>
-                        <span id="modalEntryFee" class="font-bold text-orange-400 text-sm sm:text-base">₹0</span>
-                    </div>
-                </div>
-
-                <div>
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Live Interactive Seat Visualizer</h4>
-                    <div id="modalSeatGrid" class="grid grid-cols-6 sm:grid-cols-12 gap-2 p-4 bg-slate-950 rounded-xl border border-slate-800/80">
-                        <!-- Dynamic Seat Dots -->
-                    </div>
-                    <div class="flex gap-4 mt-2 text-[11px] text-slate-400 justify-end">
-                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Empty</span>
-                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-700 inline-block"></span> Filled</span>
-                    </div>
-                </div>
-            </div>
-            <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-end gap-3">
-                <button onclick="closeModal('matchModal')" class="px-4 py-2 text-xs font-bold text-slate-400 hover:text-slate-200">Close</button>
-                <button id="btnProceedRegister" class="bg-orange-500 hover:bg-orange-600 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition">Register Now</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL 2: REGISTRATION FORM -->
-    <div id="registerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div class="p-5 border-b border-slate-800 flex justify-between items-center">
-                <h3 class="font-bold text-lg text-slate-100">Tournament Registration</h3>
-                <button onclick="closeModal('registerModal')" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <form id="tournamentRegistrationForm" class="p-6 space-y-4">
-                <div id="dynamicPlayerInputs" class="space-y-4">
-                    <!-- Dynamic IGN & UID inputs for Solo, Duo, Squad -->
-                </div>
-                <div class="border-t border-slate-800 pt-4 mt-4 flex justify-between items-center text-xs">
-                    <span class="text-slate-400">Registration Deduct Amount:</span>
-                    <span id="registerDeductFee" class="font-bold text-orange-400 text-sm">₹0</span>
-                </div>
-                <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg shadow-orange-500/20 text-xs uppercase tracking-wider">
-                    Confirm & Join Match
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL 3: ADD MONEY (UTR SUBMISSION) -->
-    <div id="addMoneyModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+    <!-- MODAL 1: MATCH DETAILS & SEAT GRID -->
+    <div id="matchModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex modal-wrapper justify-center p-0 sm:p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h3 class="font-bold text-slate-100">Add Money to Wallet</h3>
-                <button onclick="closeModal('addMoneyModal')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+                <h3 id="modalMatchTitle" class="font-bold text-slate-100 text-base">Match Details</h3>
+                <button onclick="closeModal('matchModal')" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <div class="bg-slate-950 p-4 rounded-xl text-center border border-slate-800 space-y-2">
-                <p class="text-xs text-slate-400">Pay via UPI to Official ID:</p>
-                <div class="text-sm font-extrabold text-amber-400 tracking-wide select-all">booyahhub@upi</div>
-            </div>
-            <form id="addMoneyForm" class="space-y-3">
+            
+            <div class="grid grid-cols-3 gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">Amount Paid (₹)</label>
-                    <input type="number" id="addAmount" min="10" required placeholder="e.g., 100" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200">
+                    <span class="text-[10px] text-slate-500 block font-bold">PRIZE</span>
+                    <span id="modalPrizePool" class="text-xs font-black text-amber-400">₹0</span>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">12-Digit UTR / Transaction Reference</label>
-                    <input type="text" id="addUtr" required placeholder="e.g., 329182736412" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200">
+                    <span class="text-[10px] text-slate-500 block font-bold">PER KILL</span>
+                    <span id="modalPerKill" class="text-xs font-black text-emerald-400">₹0</span>
                 </div>
-                <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-slate-950 font-bold py-3 rounded-xl transition text-xs uppercase">Submit Deposit Verification</button>
-            </form>
+                <div>
+                    <span class="text-[10px] text-slate-500 block font-bold">ENTRY</span>
+                    <span id="modalEntryFee" class="text-xs font-black text-orange-400">₹0</span>
+                </div>
+            </div>
+
+            <div>
+                <span class="text-xs text-slate-400 font-bold block mb-2">Slot Visualizer</span>
+                <div id="modalSeatGrid" class="grid grid-cols-8 gap-1.5 bg-slate-950 p-3 rounded-xl border border-slate-800 max-h-48 overflow-y-auto">
+                    <!-- Seat dots injected dynamically -->
+                </div>
+            </div>
+
+            <button id="btnProceedRegister" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-black py-3 rounded-xl transition text-xs shadow-lg shadow-orange-500/20">
+                Join Match Now
+            </button>
         </div>
     </div>
 
-    <!-- MODAL 4: WITHDRAW MONEY -->
-    <div id="withdrawModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+    <!-- MODAL 2: DYNAMIC REGISTRATION FORM -->
+    <div id="registerModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex modal-wrapper justify-center p-0 sm:p-4">
+        <form id="tournamentRegistrationForm" class="bg-slate-900 border border-slate-800 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h3 class="font-bold text-slate-100">Withdraw Winnings</h3>
-                <button onclick="closeModal('withdrawModal')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="font-bold text-slate-100 text-base">Enter Slot Details</h3>
+                <button type="button" onclick="closeModal('registerModal')" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <form id="withdrawForm" class="space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">Withdrawal Amount (₹)</label>
-                    <input type="number" id="withdrawAmount" min="50" required placeholder="e.g., 200" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">Payment Method</label>
-                    <select id="withdrawMethod" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200">
-                        <option value="UPI">UPI ID</option>
-                        <option value="BANK">Bank Account / IFSC</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">Payout Details</label>
-                    <input type="text" id="withdrawDetails" required placeholder="UPI ID or Account Number + IFSC" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200">
-                </div>
-                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-xl transition text-xs uppercase">Request Payout</button>
-            </form>
-        </div>
+
+            <div id="dynamicPlayerInputs" class="space-y-3">
+                <!-- Player inputs injected based on SOLO/DUO/SQUAD -->
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
+                <span class="text-xs text-slate-400 font-semibold">Deduction Fee:</span>
+                <span id="registerDeductFee" class="text-sm font-black text-orange-400">₹0</span>
+            </div>
+
+            <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-slate-950 font-extrabold py-3 rounded-xl transition text-xs shadow-lg shadow-orange-500/20">
+                Confirm & Pay
+            </button>
+        </form>
     </div>
 
-    <!-- JavaScript App Module -->
+    <!-- MODAL 3: ADD MONEY (UPI) -->
+    <div id="addMoneyModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex modal-wrapper justify-center p-0 sm:p-4">
+        <form id="addMoneyForm" class="bg-slate-900 border border-slate-800 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-slate-100 text-base">Add Wallet Balance</h3>
+                <button type="button" onclick="closeModal('addMoneyModal')" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center space-y-2">
+                <span class="text-xs text-slate-400 block font-bold">UPI ID for Payment</span>
+                <div class="font-mono text-sm font-black text-orange-400 bg-slate-900 py-2 rounded-xl border border-slate-800 select-all">
+                    booyahhub@upi
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-xs text-slate-400 font-semibold">Amount (₹)</label>
+                <input type="number" id="addAmount" required min="10" placeholder="100" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-xs text-slate-400 font-semibold">UTR / Transaction Ref No.</label>
+                <input type="text" id="addUtr" required placeholder="12-digit UTR Number" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold py-3 rounded-xl transition text-xs shadow-lg shadow-emerald-500/20">
+                Submit Payment Request
+            </button>
+        </form>
+    </div>
+
+    <!-- MODAL 4: WITHDRAW -->
+    <div id="withdrawModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex modal-wrapper justify-center p-0 sm:p-4">
+        <form id="withdrawForm" class="bg-slate-900 border border-slate-800 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-slate-100 text-base">Withdraw Winnings</h3>
+                <button type="button" onclick="closeModal('withdrawModal')" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-xs text-slate-400 font-semibold">Amount (₹)</label>
+                <input type="number" id="withdrawAmount" required min="50" placeholder="50" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-xs text-slate-400 font-semibold">Payout Method</label>
+                <select id="withdrawMethod" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                    <option value="UPI">UPI ID</option>
+                    <option value="PAYTM">Paytm Number</option>
+                </select>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-xs text-slate-400 font-semibold">UPI ID / Phone Number</label>
+                <input type="text" id="withdrawDetails" required placeholder="e.g. 9876543210@upi" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+            </div>
+
+            <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-slate-950 font-extrabold py-3 rounded-xl transition text-xs shadow-lg shadow-orange-500/20">
+                Request Withdrawal
+            </button>
+        </form>
+    </div>
+
+    <!-- Firebase App Script -->
     <script type="module" src="app.js"></script>
 </body>
 </html>
