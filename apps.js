@@ -1,4 +1,4 @@
-// app.js - Fully Production Ready & Firestore Connected
+// app.js
 import { db, auth, googleProvider } from './firebase-config.js';
 import { 
     collection, 
@@ -18,75 +18,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// Global App State
 let currentUser = null;
 let currentMatches = [];
 let selectedMatch = null;
 let userUnsub = null;
 
-// ==========================================
-// 1. AUTHENTICATION & REALTIME USER SYNC
-// ==========================================
-
-onAuthStateChanged(auth, (user) => {
-    if (userUnsub) userUnsub();
-
-    if (user) {
-        const userRef = doc(db, 'users', user.uid);
-        
-        // Setup Real-time listener on user document
-        userUnsub = onSnapshot(userRef, async (docSnap) => {
-            if (docSnap.exists()) {
-                currentUser = { uid: user.uid, ...docSnap.data() };
-            } else {
-                // Initialize new user in Firestore
-                const newUser = {
-                    uid: user.uid,
-                    displayName: user.displayName || 'Booyah Player',
-                    email: user.email || '',
-                    photoURL: user.photoURL || 'https://via.placeholder.com/90',
-                    walletBalance: 0,
-                    winnings: 0,
-                    ign: '',
-                    gameUid: '',
-                    createdAt: serverTimestamp()
-                };
-                await setDoc(userRef, newUser);
-                currentUser = newUser;
-            }
-            
-            const totalBalance = (currentUser.walletBalance || 0) + (currentUser.winnings || 0);
-            updateHeaderWalletDisplay(totalBalance);
-
-            // Active tab updates
-            const contentDiv = document.getElementById('content');
-            if (contentDiv && contentDiv.dataset.activePage === 'Wallet') {
-                renderWalletPage(contentDiv);
-            } else if (contentDiv && contentDiv.dataset.activePage === 'Profile') {
-                renderProfilePage(contentDiv);
-            }
-        }, (err) => {
-            console.error("User Snapshot Error:", err);
-        });
-    } else {
-        currentUser = null;
-        updateHeaderWalletDisplay(0);
-        const contentDiv = document.getElementById('content');
-        if (contentDiv && contentDiv.dataset.activePage === 'Profile') {
-            renderProfilePage(contentDiv);
-        }
-    }
-
-    const contentDiv = document.getElementById('content');
-    if (contentDiv && !contentDiv.dataset.activePage) {
-        window.navigate('Home');
-    }
-});
-
-// ==========================================
-// 2. GLOBAL NAVIGATION & UI ROUTER
-// ==========================================
-
+// Navigation Function
 window.navigate = function(pageName, btnElement) {
     if (btnElement) {
         document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
@@ -127,18 +64,67 @@ window.closeModal = function(modalId) {
 };
 
 window.toggleNotif = function() {
-    alert("Sabhi game updates real-time active hain!");
+    alert("Notifications Active Hain!");
 };
 
-// ==========================================
-// 3. PAGE RENDERERS
-// ==========================================
+// Auth Observer
+onAuthStateChanged(auth, (user) => {
+    if (userUnsub) userUnsub();
+
+    if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        
+        userUnsub = onSnapshot(userRef, async (docSnap) => {
+            if (docSnap.exists()) {
+                currentUser = { uid: user.uid, ...docSnap.data() };
+            } else {
+                const newUser = {
+                    uid: user.uid,
+                    displayName: user.displayName || 'Booyah Player',
+                    email: user.email || '',
+                    photoURL: user.photoURL || 'https://via.placeholder.com/90',
+                    walletBalance: 0,
+                    winnings: 0,
+                    ign: '',
+                    gameUid: '',
+                    createdAt: serverTimestamp()
+                };
+                await setDoc(userRef, newUser);
+                currentUser = newUser;
+            }
+            
+            const totalBalance = (currentUser.walletBalance || 0) + (currentUser.winnings || 0);
+            updateHeaderWalletDisplay(totalBalance);
+
+            const contentDiv = document.getElementById('content');
+            if (contentDiv && contentDiv.dataset.activePage === 'Wallet') {
+                renderWalletPage(contentDiv);
+            } else if (contentDiv && contentDiv.dataset.activePage === 'Profile') {
+                renderProfilePage(contentDiv);
+            }
+        }, (err) => {
+            console.error("User Sync Error:", err);
+        });
+    } else {
+        currentUser = null;
+        updateHeaderWalletDisplay(0);
+        const contentDiv = document.getElementById('content');
+        if (contentDiv && contentDiv.dataset.activePage === 'Profile') {
+            renderProfilePage(contentDiv);
+        }
+    }
+
+    const contentDiv = document.getElementById('content');
+    if (contentDiv) {
+        window.navigate(contentDiv.dataset.activePage || 'Home');
+    }
+});
 
 function renderHomePage(container) {
     container.innerHTML = `
         <div class="search-box">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="searchInput" placeholder="Search tournament name ya mode..." onkeyup="window.filterMatches()">
+            <input type="text" id="searchInput" placeholder="Search tournament..." onkeyup="window.filterMatches()">
         </div>
 
         <div class="filter-chips">
@@ -149,13 +135,13 @@ function renderHomePage(container) {
         </div>
 
         <div class="section-title">
-            <i class="fa-solid fa-fire"></i> Active Firestore Tournaments
+            <i class="fa-solid fa-fire"></i> Active Tournaments
         </div>
 
         <div id="matchesListContainer">
             <div style="text-align:center; padding:30px; color:var(--text-muted);">
                 <i class="fa-solid fa-spinner fa-spin" style="font-size:24px;"></i>
-                <p style="margin-top:10px;">Connecting to Firestore Database...</p>
+                <p style="margin-top:10px;">Loading Live Tournaments...</p>
             </div>
         </div>
     `;
@@ -181,7 +167,7 @@ function renderWalletPage(container) {
     const winBal = currentUser ? (currentUser.winnings || 0) : 0;
 
     container.innerHTML = `
-        <div class="section-title"><i class="fa-solid fa-wallet"></i> My Real Wallet</div>
+        <div class="section-title"><i class="fa-solid fa-wallet"></i> My Wallet</div>
         <div class="card card-body">
             <div class="wallet-stats-grid">
                 <div class="wallet-stat-card">
@@ -218,31 +204,27 @@ function renderWalletPage(container) {
 function renderProfilePage(container) {
     if (!currentUser) {
         container.innerHTML = `
-            <div class="section-title"><i class="fa-solid fa-user"></i> Profile Account</div>
-            <div class="card card-body" style="text-align:center; padding: 30px 15px;">
-                <i class="fa-solid fa-lock" style="font-size: 32px; color: var(--accent-orange); margin-bottom: 12px;"></i>
-                <h3 style="margin-bottom:6px;">Authentication Required</h3>
-                <p style="color:var(--text-muted); font-size:12px; margin-bottom:20px;">Apne account se tournaments join karne aur winnings track karne ke liye login karein.</p>
+            <div class="section-title"><i class="fa-solid fa-user"></i> My Profile</div>
+            <div class="card card-body" style="text-align:center; padding:30px 15px;">
+                <i class="fa-solid fa-lock" style="font-size:32px; color:var(--accent-orange); margin-bottom:12px;"></i>
+                <h3 style="margin-bottom:6px;">Login Required</h3>
+                <p style="color:var(--text-muted); font-size:12px; margin-bottom:20px;">Tournaments join karne ke liye Google login karein.</p>
                 <button class="btn-primary" onclick="window.handleGoogleLogin()">
-                    <i class="fa-brands fa-google" style="margin-right:8px;"></i> Login with Google
+                    <i class="fa-brands fa-google"></i> Login with Google
                 </button>
             </div>
         `;
         return;
     }
 
-    const name = currentUser.displayName || 'Booyah Player';
-    const email = currentUser.email || '-';
-    const photo = currentUser.photoURL || 'https://via.placeholder.com/90';
-
     container.innerHTML = `
         <div class="section-title"><i class="fa-solid fa-user"></i> My Profile</div>
         <div class="card card-body" style="text-align:center;">
             <div class="profile-avatar-wrap">
-                <img src="${photo}" class="profile-avatar" id="userAvatarImg" alt="Avatar">
+                <img src="${currentUser.photoURL || 'https://via.placeholder.com/90'}" class="profile-avatar" alt="Avatar">
             </div>
-            <h3 style="margin-top:5px;">${name}</h3>
-            <p style="font-size:12px; color:var(--text-muted);">${email}</p>
+            <h3 style="margin-top:5px;">${currentUser.displayName || 'Player'}</h3>
+            <p style="font-size:12px; color:var(--text-muted);">${currentUser.email || '-'}</p>
 
             <div class="form-group" style="margin-top:20px; text-align:left;">
                 <label>In-Game Name (IGN)</label>
@@ -253,15 +235,11 @@ function renderProfilePage(container) {
                 <input type="text" id="profileUid" placeholder="e.g. 123456789" value="${currentUser.gameUid || ''}">
             </div>
 
-            <button class="btn-primary" id="saveProfileBtn" onclick="window.saveProfileData()">Save Profile</button>
+            <button class="btn-primary" onclick="window.saveProfileData()">Save Profile</button>
             <button class="btn-secondary" onclick="window.handleLogout()" style="margin-top:10px;">Logout</button>
         </div>
     `;
 }
-
-// ==========================================
-// 4. REAL-TIME FIRESTORE DATA LISTENERS
-// ==========================================
 
 function fetchMatches() {
     const container = document.getElementById('matchesListContainer');
@@ -274,28 +252,24 @@ function fetchMatches() {
             container.innerHTML = `
                 <div class="card card-body" style="text-align:center; color:var(--text-muted); padding:30px;">
                     <i class="fa-solid fa-circle-exclamation" style="font-size:28px; margin-bottom:8px; color:var(--accent-orange);"></i>
-                    <p>Firestore mein koi tournaments nahi hain.</p>
+                    <p>Koi tournaments uplabdha nahi hain.</p>
                 </div>
             `;
             currentMatches = [];
             return;
         }
 
-        currentMatches = snapshot.docs.map(docSnap => ({
-            id: docSnap.id,
-            ...docSnap.data()
-        }));
-
+        currentMatches = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
         renderMatchCards(currentMatches, container);
     }, (error) => {
         console.error("Firestore Listen Error:", error);
-        container.innerHTML = `<p style="color:red; text-align:center;">Tournaments load nahi hue: ${error.message}</p>`;
+        container.innerHTML = `<p style="color:red; text-align:center;">Load Failed: ${error.message}</p>`;
     });
 }
 
 function renderMatchCards(matches, container) {
     if (matches.length === 0) {
-        container.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">Filter match nahi hua.</p>`;
+        container.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">Koi match nahi mila.</p>`;
         return;
     }
 
@@ -306,7 +280,7 @@ function renderMatchCards(matches, container) {
 
         return `
             <div class="card">
-                <img src="${m.banner || 'https://via.placeholder.com/600x200/14171f/ff5500?text=Booyah+Tournament'}" class="card-banner" alt="Match Banner">
+                <img src="${m.banner || 'https://via.placeholder.com/600x200/14171f/ff5500?text=Tournament'}" class="card-banner" alt="Match Banner">
                 <div class="card-body">
                     <div class="card-header">
                         <div class="card-title">${m.title || m.name || 'Tournament'}</div>
@@ -337,7 +311,7 @@ window.viewMatchDetails = function(matchId) {
     selectedMatch = currentMatches.find(m => m.id === matchId);
     if (!selectedMatch) return;
 
-    document.getElementById('detBanner').src = selectedMatch.banner || 'https://via.placeholder.com/600x200/14171f/ff5500?text=Booyah+Tournament';
+    document.getElementById('detBanner').src = selectedMatch.banner || 'https://via.placeholder.com/600x200/14171f/ff5500?text=Tournament';
     document.getElementById('detTitle').innerText = selectedMatch.title || selectedMatch.name;
     document.getElementById('detMode').innerText = `${selectedMatch.mode || 'SOLO'} | ${selectedMatch.map ? selectedMatch.map.toUpperCase() : 'BERMUDA'}`;
     document.getElementById('detPrize').innerText = `₹${selectedMatch.prizePool || 0}`;
@@ -368,7 +342,7 @@ window.viewMatchDetails = function(matchId) {
 
 window.openJoinModal = function() {
     if (!currentUser) {
-        alert("Pehle profile tab par jaakar Google login karein!");
+        alert("Pehle Google Login karein!");
         window.navigate('Profile');
         return;
     }
@@ -403,23 +377,14 @@ window.openJoinModal = function() {
     window.openModal('joinModal');
 };
 
-// ==========================================
-// 5. TRANSACTIONAL MATCH REGISTRATION
-// ==========================================
-
 window.confirmJoin = async function() {
-    if (!currentUser) {
-        alert("Login required!");
-        return;
-    }
-
-    if (!selectedMatch) return;
+    if (!currentUser || !selectedMatch) return;
 
     const entryFee = Number(selectedMatch.entryFee || 0);
     const totalBal = (currentUser.walletBalance || 0) + (currentUser.winnings || 0);
 
     if (totalBal < entryFee) {
-        alert(`Insufficient balance! Entry fee: ₹${entryFee}, Apka balance: ₹${totalBal}. Dynamic wallet recharge karein.`);
+        alert(`Insufficient balance! Fee: ₹${entryFee}, Balance: ₹${totalBal}.`);
         window.closeModal('joinModal');
         window.navigate('Wallet');
         return;
@@ -434,7 +399,7 @@ window.confirmJoin = async function() {
         const uid = document.getElementById(`uidP${i}`)?.value?.trim();
 
         if (!ign || !uid) {
-            alert(`Player ${i} ke IGN aur UID details fill karna zaroori hai!`);
+            alert(`Player ${i} details fill karein!`);
             return;
         }
         players.push({ ign, gameUid: uid });
@@ -448,7 +413,7 @@ window.confirmJoin = async function() {
             const matchDoc = await transaction.get(matchRef);
             const userDoc = await transaction.get(userRef);
 
-            if (!matchDoc.exists()) throw new Error("Match exist nahi karta.");
+            if (!matchDoc.exists()) throw new Error("Match not found.");
             
             const matchData = matchDoc.data();
             const userData = userDoc.data();
@@ -456,37 +421,24 @@ window.confirmJoin = async function() {
             const currentSlots = matchData.filledSlots || 0;
             const maxSlots = matchData.totalSlots || 48;
 
-            if (currentSlots >= maxSlots) {
-                throw new Error("Match full ho chuka hai!");
-            }
+            if (currentSlots >= maxSlots) throw new Error("Match full ho gaya hai!");
 
             let currentDeposit = userData.walletBalance || 0;
             let currentWinnings = userData.winnings || 0;
 
-            if ((currentDeposit + currentWinnings) < entryFee) {
-                throw new Error("Balance insufficient hai.");
-            }
+            if ((currentDeposit + currentWinnings) < entryFee) throw new Error("Balance low hai!");
 
-            // Deduct balance logic (pehle deposit fir winnings se)
             if (currentDeposit >= entryFee) {
                 currentDeposit -= entryFee;
             } else {
-                const remaining = entryFee - currentDeposit;
+                const rem = entryFee - currentDeposit;
                 currentDeposit = 0;
-                currentWinnings -= remaining;
+                currentWinnings -= rem;
             }
 
-            // Update User & Match
-            transaction.update(userRef, {
-                walletBalance: currentDeposit,
-                winnings: currentWinnings
-            });
+            transaction.update(userRef, { walletBalance: currentDeposit, winnings: currentWinnings });
+            transaction.update(matchRef, { filledSlots: currentSlots + 1 });
 
-            transaction.update(matchRef, {
-                filledSlots: currentSlots + 1
-            });
-
-            // Registration record
             const regRef = doc(collection(db, 'registrations'));
             transaction.set(regRef, {
                 tournamentId: selectedMatch.id,
@@ -496,13 +448,12 @@ window.confirmJoin = async function() {
                 joinedAt: serverTimestamp()
             });
 
-            // Transaction log
             const txnRef = doc(collection(db, 'transactions'));
             transaction.set(txnRef, {
                 userId: currentUser.uid,
                 amount: entryFee,
                 type: 'DEBIT',
-                description: `Entry Fee: ${matchData.title || matchData.name}`,
+                description: `Entry: ${matchData.title || matchData.name}`,
                 status: 'SUCCESS',
                 createdAt: serverTimestamp()
             });
@@ -511,13 +462,9 @@ window.confirmJoin = async function() {
         alert("Registration Successful!");
         window.closeModal('joinModal');
     } catch (err) {
-        alert("Registration Failed: " + err.message);
+        alert("Failed: " + err.message);
     }
 };
-
-// ==========================================
-// 6. LEADERBOARD & TRANSACTIONS
-// ==========================================
 
 async function fetchLeaderboard() {
     const container = document.getElementById('leaderboardContainer');
@@ -528,14 +475,14 @@ async function fetchLeaderboard() {
         const snap = await getDocs(q);
 
         if (snap.empty) {
-            container.innerHTML = `<p style="text-align:center; color:var(--text-muted);">Leaderboard Data Empty hai.</p>`;
+            container.innerHTML = `<p style="text-align:center; color:var(--text-muted);">Leaderboard is empty.</p>`;
             return;
         }
 
         let rank = 1;
-        container.innerHTML = snap.docs.map((docSnap) => {
+        container.innerHTML = snap.docs.map(docSnap => {
             const data = docSnap.data();
-            const el = `
+            const html = `
                 <div class="list-item">
                     <div style="display:flex; align-items:center; gap:10px;">
                         <span style="font-weight:700; color:${rank === 1 ? '#ffb700' : rank === 2 ? '#c0c0c0' : rank === 3 ? '#cd7f32' : 'var(--text-muted)'};">#${rank}</span>
@@ -548,11 +495,10 @@ async function fetchLeaderboard() {
                 </div>
             `;
             rank++;
-            return el;
+            return html;
         }).join('');
     } catch (err) {
         console.error("Leaderboard Error:", err);
-        container.innerHTML = `<p style="color:red; text-align:center; font-size:12px;">Leaderboard load karne me dikkat hui.</p>`;
     }
 }
 
@@ -574,7 +520,7 @@ async function fetchTransactionHistory() {
         const snap = await getDocs(q);
 
         if (snap.empty) {
-            container.innerHTML = `<p style="font-size:12px; color:var(--text-muted); text-align:center;">Abhi tak koi transactions nahi hain.</p>`;
+            container.innerHTML = `<p style="font-size:12px; color:var(--text-muted); text-align:center;">No transaction history.</p>`;
             return;
         }
 
@@ -584,7 +530,7 @@ async function fetchTransactionHistory() {
             return `
                 <div class="list-item">
                     <div>
-                        <strong>${t.description || 'Wallet Transaction'}</strong>
+                        <strong>${t.description || 'Transaction'}</strong>
                         <p style="font-size:10px; color:var(--text-muted);">${t.status || 'COMPLETED'}</p>
                     </div>
                     <strong style="color: ${isCredit ? 'var(--green-glow)' : '#ff4444'};">
@@ -594,30 +540,17 @@ async function fetchTransactionHistory() {
             `;
         }).join('');
     } catch (err) {
-        console.error("Txn History Error:", err);
-        container.innerHTML = `<p style="font-size:12px; color:var(--text-muted); text-align:center;">History sync failure.</p>`;
+        console.error("History error:", err);
     }
 }
 
-// ==========================================
-// 7. WALLET PAYMENT & PROFILE ACTIONS
-// ==========================================
-
 window.openDepositModal = function() {
-    if (!currentUser) {
-        alert("Pehle Google Account Login karein!");
-        window.navigate('Profile');
-        return;
-    }
+    if (!currentUser) { alert("Login required!"); window.navigate('Profile'); return; }
     window.openModal('depositModal');
 };
 
 window.openWithdrawModal = function() {
-    if (!currentUser) {
-        alert("Pehle Google Account Login karein!");
-        window.navigate('Profile');
-        return;
-    }
+    if (!currentUser) { alert("Login required!"); window.navigate('Profile'); return; }
     window.openModal('withdrawModal');
 };
 
@@ -626,7 +559,7 @@ window.handleGoogleLogin = async function() {
         await signInWithPopup(auth, googleProvider);
         window.navigate('Profile');
     } catch (err) {
-        alert("Google Login Error: " + err.message);
+        alert("Login Error: " + err.message);
     }
 };
 
@@ -636,28 +569,17 @@ window.handleLogout = async function() {
 };
 
 window.startDirectUpiPayment = function() {
-    const amountInput = document.getElementById('depositAmountInput');
-    const amount = Number(amountInput.value);
-
-    if (!amount || amount < 10) {
-        alert("Minimum Deposit ₹10 hai!");
-        return;
-    }
-
+    const amount = Number(document.getElementById('depositAmountInput')?.value);
+    if (!amount || amount < 10) { alert("Min Deposit ₹10"); return; }
     window.closeModal('depositModal');
     window.openModal('verifyUpiModal');
 };
 
 window.submitUpiVerification = async function() {
-    const utrInput = document.getElementById('upiUtrInput');
-    const amountInput = document.getElementById('depositAmountInput');
-    const utr = utrInput ? utrInput.value.trim() : '';
-    const amount = amountInput ? Number(amountInput.value) : 0;
+    const utr = document.getElementById('upiUtrInput')?.value?.trim();
+    const amount = Number(document.getElementById('depositAmountInput')?.value);
 
-    if (!utr || utr.length !== 12 || isNaN(utr)) {
-        alert("Valid 12-digit numeric UTR/Ref ID enter karein!");
-        return;
-    }
+    if (!utr || utr.length !== 12) { alert("Valid 12-digit UTR daalein!"); return; }
 
     try {
         await addDoc(collection(db, 'deposits'), {
@@ -667,11 +589,10 @@ window.submitUpiVerification = async function() {
             status: 'PENDING',
             createdAt: serverTimestamp()
         });
-
-        alert("UTR Submit ho gaya! Verification complete hote hi wallet me balance credit kar diya jayega.");
+        alert("UTR Submit ho gaya hai!");
         window.closeModal('verifyUpiModal');
     } catch (err) {
-        alert("Error submitting UTR: " + err.message);
+        alert("Error: " + err.message);
     }
 };
 
@@ -682,18 +603,8 @@ window.handleWithdrawMethodChange = function() {
 };
 
 window.submitWithdrawalRequest = async function() {
-    const amount = Number(document.getElementById('withdrawAmountInput').value);
-    const winBal = currentUser.winnings || 0;
-
-    if (!amount || amount < 50) {
-        alert("Minimum withdrawal ₹50 hai.");
-        return;
-    }
-
-    if (amount > winBal) {
-        alert(`Insufficient Winnings! Apke Winnings: ₹${winBal}`);
-        return;
-    }
+    const amount = Number(document.getElementById('withdrawAmountInput')?.value);
+    if (!amount || amount < 50) { alert("Min Withdrawal ₹50!"); return; }
 
     try {
         await addDoc(collection(db, 'withdrawals'), {
@@ -703,11 +614,10 @@ window.submitWithdrawalRequest = async function() {
             status: 'PENDING',
             createdAt: serverTimestamp()
         });
-
-        alert("Withdrawal Request Submit Ho Gayi!");
+        alert("Withdrawal Requested!");
         window.closeModal('withdrawModal');
     } catch (err) {
-        alert("Withdrawal error: " + err.message);
+        alert("Error: " + err.message);
     }
 };
 
@@ -715,34 +625,21 @@ window.saveProfileData = async function() {
     const ign = document.getElementById('profileIgn').value.trim();
     const uid = document.getElementById('profileUid').value.trim();
 
-    if (!ign || !uid) {
-        alert("IGN aur Game UID enter karna compulsory hai!");
-        return;
-    }
+    if (!ign || !uid) { alert("IGN aur UID fill karein!"); return; }
 
-    if (currentUser && currentUser.uid) {
-        try {
-            await updateDoc(doc(db, 'users', currentUser.uid), {
-                ign: ign,
-                gameUid: uid
-            });
-            alert("Profile Real-Time Save Ho Gayi!");
-        } catch (err) {
-            alert("Save failed: " + err.message);
-        }
+    if (currentUser?.uid) {
+        await updateDoc(doc(db, 'users', currentUser.uid), { ign, gameUid: uid });
+        alert("Profile Saved!");
     }
 };
 
 function updateHeaderWalletDisplay(amount) {
     const walletDisplay = document.getElementById('headerWalletDisplay');
-    if (walletDisplay) {
-        walletDisplay.innerText = `₹${amount}`;
-    }
+    if (walletDisplay) walletDisplay.innerText = `₹${amount}`;
 }
 
-// Search & Filter Operations
 window.filterMatches = function() {
-    const queryStr = document.getElementById('searchInput').value.toLowerCase();
+    const queryStr = document.getElementById('searchInput')?.value.toLowerCase();
     const filtered = currentMatches.filter(m => 
         (m.title || m.name || '').toLowerCase().includes(queryStr) || 
         (m.mode || '').toLowerCase().includes(queryStr)
@@ -762,7 +659,6 @@ window.filterByTag = function(tag, chipBtn) {
     }
 };
 
-// Initialization Setup
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("Booyah HUB - Firestore Live System Initialized.");
+    window.navigate('Home');
 });
