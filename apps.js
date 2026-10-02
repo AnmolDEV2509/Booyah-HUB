@@ -1,4 +1,5 @@
-import { db, auth, googleProvider } from "./firebase-config.js";
+// app.js
+import { db, auth, messaging, googleProvider } from "./firebase-config.js";
 import { 
     signInWithPopup, 
     onAuthStateChanged 
@@ -16,6 +17,10 @@ import {
     orderBy, 
     limit 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { 
+    getToken, 
+    onMessage 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
 // STATE MANAGEMENT
 let currentUser = null;
@@ -24,26 +29,107 @@ let tournamentsData = [];
 let activeModeFilter = 'ALL';
 let currentSelectedMatch = null;
 
-// INITIALIZATION
+// GLOBAL HELPER FUNCTIONS
+window.switchTab = (tabName) => {
+    const tabs = ['tournaments', 'wallet', 'leaderboard', 'profile'];
+    tabs.forEach(t => {
+        const viewEl = document.getElementById(`view-${t}`);
+        const btnEl = document.getElementById(`tab-${t}`);
+        
+        if (viewEl) viewEl.classList.add("hidden");
+        if (btnEl) {
+            btnEl.className = "tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap";
+        }
+    });
+
+    const activeView = document.getElementById(`view-${tabName}`);
+    const activeBtn = document.getElementById(`tab-${tabName}`);
+
+    if (activeView) activeView.classList.remove("hidden");
+    if (activeBtn) {
+        activeBtn.className = "tab-btn active-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap";
+    }
+};
+
+window.openModal = (id) => {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.remove("hidden");
+};
+
+window.closeModal = (id) => {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.add("hidden");
+};
+
+window.filterMode = (mode) => {
+    activeModeFilter = mode;
+    document.querySelectorAll(".filter-chip").forEach(chip => {
+        if (chip.textContent === mode) {
+            chip.className = "filter-chip active-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition";
+        } else {
+            chip.className = "filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition";
+        }
+    });
+    renderTournaments();
+};
+
+window.openMatchDetails = (matchId) => {
+    currentSelectedMatch = tournamentsData.find(t => t.id === matchId);
+    if (!currentSelectedMatch) return;
+
+    document.getElementById("modalMatchTitle").textContent = currentSelectedMatch.title || "Match Details";
+    document.getElementById("modalPrizePool").textContent = `₹${currentSelectedMatch.prizePool || 0}`;
+    document.getElementById("modalPerKill").textContent = `₹${currentSelectedMatch.perKill || 0}`;
+    document.getElementById("modalEntryFee").textContent = `₹${currentSelectedMatch.entryFee || 0}`;
+
+    // Dynamic Seat Grid Visualizer
+    const seatGrid = document.getElementById("modalSeatGrid");
+    seatGrid.innerHTML = "";
+    const totalSlots = currentSelectedMatch.totalSlots || 48;
+    const filledSlots = currentSelectedMatch.registeredSlots || 0;
+
+    for (let i = 1; i <= totalSlots; i++) {
+        const isFilled = i <= filledSlots;
+        const dot = document.createElement("div");
+        dot.className = `w-full aspect-square rounded-lg flex items-center justify-center text-[10px] font-bold ${
+            isFilled 
+            ? 'bg-slate-800 text-slate-600 border border-slate-700/50' 
+            : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500 hover:text-slate-950 cursor-pointer transition'
+        }`;
+        dot.textContent = i;
+        seatGrid.appendChild(dot);
+    }
+
+    document.getElementById("btnProceedRegister").onclick = () => {
+        window.closeModal("matchModal");
+        openRegistrationModal();
+    };
+
+    window.openModal("matchModal");
+};
+
+// APP INITIALIZATION
 document.addEventListener("DOMContentLoaded", () => {
     setupAuthListeners();
-    setupTabSwitching();
     setupSearchAndFilters();
     listenTournaments();
     listenLeaderboard();
     setupForms();
+    setupMessagingListeners();
 });
 
-// 1. AUTHENTICATION
+// AUTHENTICATION
 function setupAuthListeners() {
     const googleBtn = document.getElementById("googleLoginBtn");
-    googleBtn.addEventListener("click", async () => {
-        try {
-            await signInWithPopup(auth, googleProvider);
-        } catch (err) {
-            alert("Login Failed: " + err.message);
-        }
-    });
+    if (googleBtn) {
+        googleBtn.addEventListener("click", async () => {
+            try {
+                await signInWithPopup(auth, googleProvider);
+            } catch (err) {
+                alert("Login Failed: " + err.message);
+            }
+        });
+    }
 
     onAuthStateChanged(auth, async (user) => {
         currentUser = user;
@@ -51,19 +137,19 @@ function setupAuthListeners() {
         const loginBtn = document.getElementById("googleLoginBtn");
 
         if (user) {
-            loginBtn.classList.add("hidden");
-            profileNav.classList.remove("hidden");
+            if (loginBtn) loginBtn.classList.add("hidden");
+            if (profileNav) profileNav.classList.remove("hidden");
+            
             document.getElementById("userAvatar").src = user.photoURL || 'https://via.placeholder.com/150';
             document.getElementById("profileCardAvatar").src = user.photoURL || 'https://via.placeholder.com/150';
             document.getElementById("profileCardName").textContent = user.displayName || 'Gamer';
             document.getElementById("profileCardEmail").textContent = user.email;
 
-            // Sync user document
             await syncUserProfile(user);
             listenUserRealtimeData(user.uid);
         } else {
-            loginBtn.classList.remove("hidden");
-            profileNav.classList.add("hidden");
+            if (loginBtn) loginBtn.classList.remove("hidden");
+            if (profileNav) profileNav.classList.add("hidden");
         }
     });
 }
@@ -99,13 +185,11 @@ function listenUserRealtimeData(uid) {
             document.getElementById("winningsBalanceText").textContent = `₹${userProfile.winningsBalance || 0}`;
             document.getElementById("totalBalanceText").textContent = `₹${total}`;
 
-            // Populate profile inputs
             if (userProfile.ign) document.getElementById("profileIgn").value = userProfile.ign;
             if (userProfile.characterUid) document.getElementById("profileUid").value = userProfile.characterUid;
         }
     });
 
-    // Listen to User Transactions
     const qTx = query(collection(db, "transactions"), where("userId", "==", uid), orderBy("createdAt", "desc"), limit(10));
     onSnapshot(qTx, (snapshot) => {
         const tbody = document.getElementById("transactionHistoryTable");
@@ -134,7 +218,7 @@ function listenUserRealtimeData(uid) {
     });
 }
 
-// 2. MATCH DISCOVERY & FILTERS
+// REALTIME TOURNAMENT SYNC
 function listenTournaments() {
     onSnapshot(collection(db, "tournaments"), (snapshot) => {
         tournamentsData = [];
@@ -142,6 +226,8 @@ function listenTournaments() {
             tournamentsData.push({ id: docSnap.id, ...docSnap.data() });
         });
         renderTournaments();
+    }, (error) => {
+        console.error("Firestore Error:", error);
     });
 }
 
@@ -151,14 +237,14 @@ function renderTournaments() {
 
     const filtered = tournamentsData.filter(t => {
         const matchesMode = activeModeFilter === 'ALL' || t.mode === activeModeFilter;
-        const matchesSearch = t.title.toLowerCase().includes(searchQuery);
+        const matchesSearch = (t.title || "").toLowerCase().includes(searchQuery);
         return matchesMode && matchesSearch;
     });
 
     grid.innerHTML = "";
 
     if (filtered.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500">No tournaments active right now.</div>`;
+        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500">No tournaments active right now. Add documents in Firebase Console!</div>`;
         return;
     }
 
@@ -172,28 +258,27 @@ function renderTournaments() {
                 <div>
                     <div class="relative h-40 bg-slate-950 overflow-hidden">
                         <img src="${t.bannerUrl || 'https://via.placeholder.com/600x300'}" class="w-full h-full object-cover">
-                        <span class="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-extrabold text-orange-400 border border-orange-500/20">${t.mode}</span>
+                        <span class="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-extrabold text-orange-400 border border-orange-500/20">${t.mode || 'SOLO'}</span>
                         <span class="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-bold text-slate-300 border border-slate-800">${t.status || 'UPCOMING'}</span>
                     </div>
                     <div class="p-5 space-y-4">
-                        <h3 class="font-bold text-slate-100 text-lg leading-snug">${t.title}</h3>
+                        <h3 class="font-bold text-slate-100 text-lg leading-snug">${t.title || 'Free Fire Tournament'}</h3>
                         
                         <div class="grid grid-cols-3 gap-2 bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 text-center">
                             <div>
                                 <span class="text-[10px] text-slate-500 block font-bold uppercase">Prize Pool</span>
-                                <span class="text-xs font-extrabold text-amber-400">₹${t.prizePool}</span>
+                                <span class="text-xs font-extrabold text-amber-400">₹${t.prizePool || 0}</span>
                             </div>
                             <div>
                                 <span class="text-[10px] text-slate-500 block font-bold uppercase">Per Kill</span>
-                                <span class="text-xs font-extrabold text-emerald-400">₹${t.perKill}</span>
+                                <span class="text-xs font-extrabold text-emerald-400">₹${t.perKill || 0}</span>
                             </div>
                             <div>
                                 <span class="text-[10px] text-slate-500 block font-bold uppercase">Entry</span>
-                                <span class="text-xs font-extrabold text-orange-400">₹${t.entryFee}</span>
+                                <span class="text-xs font-extrabold text-orange-400">₹${t.entryFee || 0}</span>
                             </div>
                         </div>
 
-                        <!-- Slot Tracking Bar -->
                         <div class="space-y-1.5">
                             <div class="flex justify-between text-xs font-semibold">
                                 <span class="text-slate-400">Spots Filled</span>
@@ -216,56 +301,11 @@ function renderTournaments() {
 }
 
 function setupSearchAndFilters() {
-    document.getElementById("tournamentSearch").addEventListener("input", renderTournaments);
+    const searchInput = document.getElementById("tournamentSearch");
+    if (searchInput) searchInput.addEventListener("input", renderTournaments);
 }
 
-window.filterMode = (mode) => {
-    activeModeFilter = mode;
-    document.querySelectorAll(".filter-chip").forEach(chip => {
-        if (chip.textContent === mode) {
-            chip.className = "filter-chip active-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition";
-        } else {
-            chip.className = "filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition";
-        }
-    });
-    renderTournaments();
-};
-
-// 3. MATCH DETAILS & INTERACTIVE SEAT GRID
-window.openMatchDetails = (matchId) => {
-    currentSelectedMatch = tournamentsData.find(t => t.id === matchId);
-    if (!currentSelectedMatch) return;
-
-    document.getElementById("modalMatchTitle").textContent = currentSelectedMatch.title;
-    document.getElementById("modalPrizePool").textContent = `₹${currentSelectedMatch.prizePool}`;
-    document.getElementById("modalPerKill").textContent = `₹${currentSelectedMatch.perKill}`;
-    document.getElementById("modalEntryFee").textContent = `₹${currentSelectedMatch.entryFee}`;
-
-    // Render Seats Grid
-    const seatGrid = document.getElementById("modalSeatGrid");
-    seatGrid.innerHTML = "";
-    const totalSlots = currentSelectedMatch.totalSlots || 48;
-    const filledSlots = currentSelectedMatch.registeredSlots || 0;
-
-    for (let i = 1; i <= totalSlots; i++) {
-        const isFilled = i <= filledSlots;
-        const dot = document.createElement("div");
-        dot.className = `w-full aspect-square rounded-lg flex items-center justify-center text-[10px] font-bold ${
-            isFilled ? 'bg-slate-800 text-slate-600 border border-slate-700/50' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500 hover:text-slate-950 cursor-pointer transition'
-        }`;
-        dot.textContent = i;
-        seatGrid.appendChild(dot);
-    }
-
-    document.getElementById("btnProceedRegister").onclick = () => {
-        closeModal("matchModal");
-        openRegistrationModal();
-    };
-
-    openModal("matchModal");
-};
-
-// 4. SMART TOURNAMENT REGISTRATION (ATOMIC TRANSACTION)
+// DYNAMIC TOURNAMENT REGISTRATION FORM & ATOMIC DEDUCTION
 function openRegistrationModal() {
     if (!currentUser) {
         alert("Please Google Login to register for tournaments!");
@@ -274,10 +314,10 @@ function openRegistrationModal() {
 
     const container = document.getElementById("dynamicPlayerInputs");
     container.innerHTML = "";
-    const mode = currentSelectedMatch.mode; // SOLO, DUO, SQUAD
+    const mode = currentSelectedMatch.mode || 'SOLO'; 
     const playerCount = mode === 'SQUAD' ? 4 : (mode === 'DUO' ? 2 : 1);
 
-    document.getElementById("registerDeductFee").textContent = `₹${currentSelectedMatch.entryFee}`;
+    document.getElementById("registerDeductFee").textContent = `₹${currentSelectedMatch.entryFee || 0}`;
 
     for (let i = 1; i <= playerCount; i++) {
         const isSelf = i === 1;
@@ -295,16 +335,15 @@ function openRegistrationModal() {
         `;
     }
 
-    openModal("registerModal");
+    window.openModal("registerModal");
 }
 
 function setupForms() {
-    // Registration Submission with Atomic Firestore Transaction
     document.getElementById("tournamentRegistrationForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         if (!currentUser || !currentSelectedMatch) return;
 
-        const entryFee = currentSelectedMatch.entryFee;
+        const entryFee = currentSelectedMatch.entryFee || 0;
 
         try {
             await runTransaction(db, async (transaction) => {
@@ -320,7 +359,6 @@ function setupForms() {
                 const userData = userDoc.data();
                 const tourneyData = tourneyDoc.data();
 
-                // Balance Deduct logic (Deposit balance first, then Winnings balance)
                 let deposit = userData.depositBalance || 0;
                 let winnings = userData.winningsBalance || 0;
                 let totalBal = deposit + winnings;
@@ -329,7 +367,7 @@ function setupForms() {
                     throw new Error("Insufficient Wallet Balance! Add funds to join.");
                 }
 
-                if (tourneyData.registeredSlots >= tourneyData.totalSlots) {
+                if ((tourneyData.registeredSlots || 0) >= (tourneyData.totalSlots || 48)) {
                     throw new Error("Tournament is already FULL!");
                 }
 
@@ -342,7 +380,6 @@ function setupForms() {
                     winnings -= remainingFee;
                 }
 
-                // Execute Atomic Updates
                 transaction.update(userRef, {
                     depositBalance: deposit,
                     winningsBalance: winnings
@@ -352,7 +389,6 @@ function setupForms() {
                     registeredSlots: (tourneyData.registeredSlots || 0) + 1
                 });
 
-                // Record Registration Tx
                 const txRef = doc(collection(db, "transactions"));
                 transaction.set(txRef, {
                     userId: currentUser.uid,
@@ -364,14 +400,13 @@ function setupForms() {
                 });
             });
 
-            alert("Registration Successful! Best of luck!");
-            closeModal("registerModal");
+            alert("Registration Successful!");
+            window.closeModal("registerModal");
         } catch (err) {
             alert(err.message);
         }
     });
 
-    // Profile Form Update
     document.getElementById("profileForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         if (!currentUser) return;
@@ -380,10 +415,9 @@ function setupForms() {
         const characterUid = document.getElementById("profileUid").value.trim();
 
         await setDoc(doc(db, "users", currentUser.uid), { ign, characterUid }, { merge: true });
-        alert("In-Game Details Updated!");
+        alert("Credentials saved!");
     });
 
-    // Deposit UTR Form Submission
     document.getElementById("addMoneyForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         if (!currentUser) return;
@@ -401,12 +435,11 @@ function setupForms() {
             createdAt: serverTimestamp()
         });
 
-        alert("Deposit Request Submitted! It will be verified shortly.");
-        closeModal("addMoneyModal");
+        alert("Verification request submitted!");
+        window.closeModal("addMoneyModal");
         document.getElementById("addMoneyForm").reset();
     });
 
-    // Withdraw Form Submission
     document.getElementById("withdrawForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         if (!currentUser) return;
@@ -431,19 +464,24 @@ function setupForms() {
             createdAt: serverTimestamp()
         });
 
-        alert("Withdrawal request created!");
-        closeModal("withdrawModal");
+        alert("Payout request submitted!");
+        window.closeModal("withdrawModal");
         document.getElementById("withdrawForm").reset();
     });
 }
 
-// 5. LEADERBOARD SYSTEM
+// REALTIME LEADERBOARD
 function listenLeaderboard() {
     const q = query(collection(db, "users"), orderBy("winningsBalance", "desc"), limit(10));
     onSnapshot(q, (snapshot) => {
         const list = document.getElementById("leaderboardList");
         list.innerHTML = "";
         let rank = 1;
+
+        if (snapshot.empty) {
+            list.innerHTML = `<div class="text-center text-slate-500 py-4">No top players listed yet.</div>`;
+            return;
+        }
 
         snapshot.forEach((docSnap) => {
             const u = docSnap.data();
@@ -456,7 +494,7 @@ function listenLeaderboard() {
                 <div class="flex items-center justify-between p-4 bg-slate-950/80 border border-slate-800/80 rounded-xl">
                     <div class="flex items-center gap-4">
                         <span class="w-8 h-8 rounded-lg flex items-center justify-center text-xs ${badgeClass}">#${rank}</span>
-                        <img src="${u.photoURL || 'https://via.placeholder.com/150'}" class="w-10 h-10 rounded-xl border border-slate-800">
+                        <img src="${u.photoURL || 'https://via.placeholder.com/150'}" class="w-10 h-10 rounded-xl border border-slate-800 object-cover">
                         <div>
                             <div class="font-bold text-slate-100 text-sm">${u.name || 'Anonymous Player'}</div>
                             <div class="text-[11px] text-slate-500">IGN: ${u.ign || 'N/A'}</div>
@@ -470,22 +508,35 @@ function listenLeaderboard() {
             `;
             rank++;
         });
+    }, (err) => {
+        console.error("Leaderboard error:", err);
     });
 }
 
-// TAB NAVIGATION HELPERS
-window.switchTab = (tabName) => {
-    ['tournaments', 'wallet', 'leaderboard', 'profile'].forEach(t => {
-        document.getElementById(`view-${t}`).classList.add("hidden");
-        const btn = document.getElementById(`tab-${t}`);
-        btn.className = "tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap";
-    });
+// CLOUD MESSAGING / WEB PUSH NOTIFICATIONS
+function setupMessagingListeners() {
+    if ('serviceWorker' in navigator) {
+        onMessage(messaging, (payload) => {
+            console.log("Foreground Push Message:", payload);
+            if (payload.notification) {
+                alert(`🔔 ${payload.notification.title}\n${payload.notification.body}`);
+            }
+        });
+    }
+}
 
-    document.getElementById(`view-${tabName}`).classList.remove("hidden");
-    const activeBtn = document.getElementById(`tab-${tabName}`);
-    activeBtn.className = "tab-btn active-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap";
+// Optional helper for requesting FCM token during testing
+window.requestFcmToken = async (vapidKey) => {
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            const token = await getToken(messaging, { vapidKey });
+            console.log("Your FCM Token:", token);
+            return token;
+        } else {
+            console.warn("Notification permission denied!");
+        }
+    } catch (err) {
+        console.error("Error getting FCM Token:", err);
+    }
 };
-
-// MODAL UTILITIES
-window.openModal = (id) => document.getElementById(id).classList.remove("hidden");
-window.closeModal = (id) => document.getElementById(id).classList.add("hidden");
