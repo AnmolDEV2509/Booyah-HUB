@@ -1,8 +1,8 @@
-// app.js
 import { db, auth, messaging, googleProvider } from "./firebase-config.js";
 import { 
     signInWithPopup, 
-    onAuthStateChanged 
+    onAuthStateChanged,
+    signOut 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { 
     collection, 
@@ -18,7 +18,6 @@ import {
     limit 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { 
-    getToken, 
     onMessage 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
@@ -29,7 +28,7 @@ let tournamentsData = [];
 let activeModeFilter = 'ALL';
 let currentSelectedMatch = null;
 
-// EXPLICIT GLOBAL BINDINGS FOR INLINE HTML ONCLICK HANDLERS (DESKTOP + MOBILE BOTTOM NAV SYNC)
+// EXPLICIT GLOBAL BINDINGS
 window.switchTab = function(tabName) {
     const tabs = ['tournaments', 'wallet', 'leaderboard', 'profile'];
     
@@ -93,7 +92,6 @@ window.openMatchDetails = function(matchId) {
     document.getElementById("modalPerKill").textContent = `₹${currentSelectedMatch.perKill || 0}`;
     document.getElementById("modalEntryFee").textContent = `₹${currentSelectedMatch.entryFee || 0}`;
 
-    // Dynamic Seat Grid Visualizer
     const seatGrid = document.getElementById("modalSeatGrid");
     if (seatGrid) {
         seatGrid.innerHTML = "";
@@ -124,7 +122,7 @@ window.openMatchDetails = function(matchId) {
     window.openModal("matchModal");
 };
 
-// APP INITIALIZATION
+// INITIALIZATION
 document.addEventListener("DOMContentLoaded", () => {
     setupAuthListeners();
     setupSearchAndFilters();
@@ -134,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupMessagingListeners();
 });
 
-// AUTHENTICATION
+// AUTH & USER SYNC
 function setupAuthListeners() {
     const googleBtn = document.getElementById("googleLoginBtn");
     if (googleBtn) {
@@ -156,21 +154,12 @@ function setupAuthListeners() {
             if (loginBtn) loginBtn.classList.add("hidden");
             if (profileNav) profileNav.classList.remove("hidden");
             
-            const avatar = document.getElementById("userAvatar");
-            const profileAvatar = document.getElementById("profileCardAvatar");
-            const profileName = document.getElementById("profileCardName");
-            const profileEmail = document.getElementById("profileCardEmail");
-
-            if (avatar) avatar.src = user.photoURL || 'https://via.placeholder.com/150';
-            if (profileAvatar) profileAvatar.src = user.photoURL || 'https://via.placeholder.com/150';
-            if (profileName) profileName.textContent = user.displayName || 'Gamer';
-            if (profileEmail) profileEmail.textContent = user.email;
-
             await syncUserProfile(user);
             listenUserRealtimeData(user.uid);
         } else {
             if (loginBtn) loginBtn.classList.remove("hidden");
             if (profileNav) profileNav.classList.add("hidden");
+            userProfile = null;
         }
     });
 }
@@ -211,10 +200,24 @@ function listenUserRealtimeData(uid) {
             if (winBal) winBal.textContent = `₹${userProfile.winningsBalance || 0}`;
             if (totBal) totBal.textContent = `₹${total}`;
 
+            const displayAvatar = userProfile.photoURL || currentUser?.photoURL || 'https://via.placeholder.com/150';
+            const avatar = document.getElementById("userAvatar");
+            const profileAvatar = document.getElementById("profileCardAvatar");
+            const profileName = document.getElementById("profileCardName");
+            const profileEmail = document.getElementById("profileCardEmail");
+
+            if (avatar) avatar.src = displayAvatar;
+            if (profileAvatar) profileAvatar.src = displayAvatar;
+            if (profileName) profileName.textContent = userProfile.name || currentUser?.displayName || 'Gamer';
+            if (profileEmail) profileEmail.textContent = userProfile.email || currentUser?.email;
+
             const ignInput = document.getElementById("profileIgn");
             const uidInput = document.getElementById("profileUid");
+            const photoUrlInput = document.getElementById("profilePhotoUrl");
+
             if (ignInput && userProfile.ign) ignInput.value = userProfile.ign;
             if (uidInput && userProfile.characterUid) uidInput.value = userProfile.characterUid;
+            if (photoUrlInput && userProfile.photoURL) photoUrlInput.value = userProfile.photoURL;
         }
     });
 
@@ -247,7 +250,7 @@ function listenUserRealtimeData(uid) {
     });
 }
 
-// REALTIME TOURNAMENT SYNC
+// REALTIME TOURNAMENTS
 function listenTournaments() {
     onSnapshot(collection(db, "tournaments"), (snapshot) => {
         tournamentsData = [];
@@ -255,8 +258,6 @@ function listenTournaments() {
             tournamentsData.push({ id: docSnap.id, ...docSnap.data() });
         });
         renderTournaments();
-    }, (error) => {
-        console.error("Firestore Error:", error);
     });
 }
 
@@ -276,7 +277,7 @@ function renderTournaments() {
     grid.innerHTML = "";
 
     if (filtered.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500">No tournaments active right now. Add documents in Firebase Console!</div>`;
+        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500">No tournaments active right now.</div>`;
         return;
     }
 
@@ -337,10 +338,10 @@ function setupSearchAndFilters() {
     if (searchInput) searchInput.addEventListener("input", renderTournaments);
 }
 
-// DYNAMIC TOURNAMENT REGISTRATION FORM & ATOMIC DEDUCTION
+// REGISTRATION MODAL
 function openRegistrationModal() {
     if (!currentUser) {
-        alert("Please Google Login to register for tournaments!");
+        alert("Please Google Login to register!");
         return;
     }
 
@@ -372,7 +373,51 @@ function openRegistrationModal() {
     window.openModal("registerModal");
 }
 
+// FORMS SETUP (MANAGE PROFILE + WALLET)
 function setupForms() {
+    // 1. MANAGE PROFILE FORM
+    const profForm = document.getElementById("profileForm");
+    if (profForm) {
+        profForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!currentUser) {
+                alert("Please Login First!");
+                return;
+            }
+
+            const ign = document.getElementById("profileIgn").value.trim();
+            const characterUid = document.getElementById("profileUid").value.trim();
+            const customAvatarUrl = document.getElementById("profilePhotoUrl") ? document.getElementById("profilePhotoUrl").value.trim() : "";
+
+            try {
+                const updatePayload = { ign, characterUid };
+                if (customAvatarUrl) {
+                    updatePayload.photoURL = customAvatarUrl;
+                }
+
+                await setDoc(doc(db, "users", currentUser.uid), updatePayload, { merge: true });
+                alert("Profile Updated Successfully!");
+            } catch (err) {
+                alert("Error updating profile: " + err.message);
+            }
+        });
+    }
+
+    // 2. LOGOUT BUTTON HANDLER
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+            try {
+                await signOut(auth);
+                alert("Logged out successfully!");
+                window.switchTab('tournaments');
+            } catch (err) {
+                alert("Logout Error: " + err.message);
+            }
+        });
+    }
+
+    // 3. TOURNAMENT REGISTRATION FORM
     const regForm = document.getElementById("tournamentRegistrationForm");
     if (regForm) {
         regForm.addEventListener("submit", async (e) => {
@@ -400,11 +445,11 @@ function setupForms() {
                     let totalBal = deposit + winnings;
 
                     if (totalBal < entryFee) {
-                        throw new Error("Insufficient Wallet Balance! Add funds to join.");
+                        throw new Error("Insufficient Wallet Balance!");
                     }
 
                     if ((tourneyData.registeredSlots || 0) >= (tourneyData.totalSlots || 48)) {
-                        throw new Error("Tournament is already FULL!");
+                        throw new Error("Tournament is FULL!");
                     }
 
                     let remainingFee = entryFee;
@@ -416,14 +461,8 @@ function setupForms() {
                         winnings -= remainingFee;
                     }
 
-                    transaction.update(userRef, {
-                        depositBalance: deposit,
-                        winningsBalance: winnings
-                    });
-
-                    transaction.update(tournamentRef, {
-                        registeredSlots: (tourneyData.registeredSlots || 0) + 1
-                    });
+                    transaction.update(userRef, { depositBalance: deposit, winningsBalance: winnings });
+                    transaction.update(tournamentRef, { registeredSlots: (tourneyData.registeredSlots || 0) + 1 });
 
                     const txRef = doc(collection(db, "transactions"));
                     transaction.set(txRef, {
@@ -444,20 +483,7 @@ function setupForms() {
         });
     }
 
-    const profForm = document.getElementById("profileForm");
-    if (profForm) {
-        profForm.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            if (!currentUser) return;
-
-            const ign = document.getElementById("profileIgn").value.trim();
-            const characterUid = document.getElementById("profileUid").value.trim();
-
-            await setDoc(doc(db, "users", currentUser.uid), { ign, characterUid }, { merge: true });
-            alert("Credentials saved!");
-        });
-    }
-
+    // 4. ADD MONEY FORM
     const addForm = document.getElementById("addMoneyForm");
     if (addForm) {
         addForm.addEventListener("submit", async (e) => {
@@ -477,12 +503,13 @@ function setupForms() {
                 createdAt: serverTimestamp()
             });
 
-            alert("Verification request submitted!");
+            alert("Deposit Request Submitted!");
             window.closeModal("addMoneyModal");
             document.getElementById("addMoneyForm").reset();
         });
     }
 
+    // 5. WITHDRAW FORM
     const drawForm = document.getElementById("withdrawForm");
     if (drawForm) {
         drawForm.addEventListener("submit", async (e) => {
@@ -509,7 +536,7 @@ function setupForms() {
                 createdAt: serverTimestamp()
             });
 
-            alert("Payout request submitted!");
+            alert("Withdrawal Request Submitted!");
             window.closeModal("withdrawModal");
             document.getElementById("withdrawForm").reset();
         });
@@ -555,16 +582,13 @@ function listenLeaderboard() {
             `;
             rank++;
         });
-    }, (err) => {
-        console.error("Leaderboard error:", err);
     });
 }
 
-// CLOUD MESSAGING / WEB PUSH NOTIFICATIONS
+// PUSH MESSAGING
 function setupMessagingListeners() {
     if ('serviceWorker' in navigator) {
         onMessage(messaging, (payload) => {
-            console.log("Foreground Push Message:", payload);
             if (payload.notification) {
                 alert(`🔔 ${payload.notification.title}\n${payload.notification.body}`);
             }
