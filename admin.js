@@ -1,5 +1,5 @@
-// admin.js - Super Admin panel (admin.html)
-import { db, auth, SUPER_ADMIN_EMAIL } from "./firebase-config.js";
+// admin.js - Super Admin / Admin panel (admin.html)
+import { db, auth } from "./firebase-config.js";
 import {
     collection, doc, onSnapshot, setDoc, deleteDoc, getDoc, getDocs,
     query, where, runTransaction, serverTimestamp
@@ -13,8 +13,19 @@ import {
 import { setupAnnouncements, setupTournaments, setupResults } from "./admin-common.js";
 
 const $ = (id) => document.getElementById(id);
-const isSuperAdmin = (user) =>
-    !!user?.email && user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+
+// Admin check using Firestore admins collection
+async function checkIsAdmin(user) {
+    if (!user || !user.email) return false;
+    try {
+        const adminSnap = await getDoc(doc(db, 'admins', user.email.toLowerCase()));
+        return adminSnap.exists();
+    } catch (e) {
+        console.error("Admin verification error:", e);
+        return false;
+    }
+}
+
 const reviewer = () => ({ reviewedBy: auth.currentUser?.email || 'admin', reviewedAt: serverTimestamp() });
 
 /* ==========================================================================
@@ -32,11 +43,13 @@ window.adminLogin = async () => {
 
     try {
         const cred = await signInWithEmailAndPassword(auth, email, pass);
-        if (!isSuperAdmin(cred.user)) {
-            notifyError(`Access Denied! ${cred.user.email} Super Admin nahi hai.`);
+        const isAdmin = await checkIsAdmin(cred.user);
+        
+        if (!isAdmin) {
+            notifyError(`Access Denied! ${cred.user.email} Admin nahi hai.`);
             await signOut(auth);
         }
-        // success is handled by onAuthStateChanged below
+        // Success is handled by onAuthStateChanged listener
     } catch (e) {
         console.error('Login Error:', e);
         notifyError(authErrorMessage(e));
@@ -55,22 +68,28 @@ window.adminLogout = async () => {
    ========================================================================== */
 let panelsStarted = false;
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
     const overlay = $('authOverlay');
-    if (isSuperAdmin(user)) {
-        if (overlay) overlay.style.display = 'none';
-        if (!panelsStarted) {
-            panelsStarted = true;
-            startPanels();
+    if (user) {
+        const isAdmin = await checkIsAdmin(user);
+        if (isAdmin) {
+            if (overlay) overlay.style.display = 'none';
+            if (!panelsStarted) {
+                panelsStarted = true;
+                startPanels();
+            }
+            return;
         }
-    } else if (overlay) {
+    }
+    
+    if (overlay) {
         overlay.style.display = 'flex';
     }
 });
 
 function startPanels() {
     loadPaymentSettings();
-    listenSubAdmins();
+    listenAdmins();
     loadUsers();
     listenWithdrawalRequests();
     listenDepositRequests();
@@ -87,8 +106,8 @@ async function loadPaymentSettings() {
         const snap = await getDoc(doc(db, 'system_settings', 'payment_info'));
         if (!snap.exists()) return;
         const data = snap.data();
-        if ($('adminUpiId')) $('adminUpiId').value = data.upiId || '';
-        if ($('adminQrUrl')) $('adminQrUrl').value = data.qrCodeUrl || '';
+        if ($('adminUpiId'))$('adminUpiId').value = data.upiId || '';
+        if ($('adminQrUrl'))$('adminQrUrl').value = data.qrCodeUrl || '';
     } catch (e) {
         console.error('Error loading payment settings:', e);
     }
@@ -112,7 +131,7 @@ window.savePaymentSettings = async () => {
 };
 
 /* ==========================================================================
-   USER WALLETS (fetched once - not a live listener - to keep reads low)
+   USER WALLETS
    ========================================================================== */
 let usersCache = [];
 const MAX_USERS_SHOWN = 50;
@@ -190,8 +209,6 @@ $('adminUsersWalletList')?.addEventListener('click', async (e) => {
     const depInput = card.querySelector('[name="dep"]');
     const winInput = card.querySelector('[name="win"]');
 
-    // Only fields the admin actually edited are written. This stops a stale form
-    // from overwriting a balance that changed meanwhile (deposit approved, prize paid...).
     const depChanged = depInput.value !== '' && money(depInput.value) !== money(depInput.dataset.orig);
     const winChanged = winInput.value !== '' && money(winInput.value) !== money(winInput.dataset.orig);
     if (!depChanged && !winChanged) return toast('Koi change nahi kiya.');
@@ -212,7 +229,6 @@ $('adminUsersWalletList')?.addEventListener('click', async (e) => {
             const after = { dep: depChanged ? newDep : before.dep, win: winChanged ? newWin : before.win };
 
             tx.update(userRef, { depositBalance: after.dep, winningBalance: after.win });
-            // audit trail: who changed which wallet and from/to what
             tx.set(doc(collection(db, 'wallet_logs')), {
                 userId: uid,
                 userEmail: snap.data().email || '',
@@ -231,7 +247,6 @@ $('adminUsersWalletList')?.addEventListener('click', async (e) => {
     }
 });
 
-// Keep one user's card fresh after a wallet-changing action (no full reload needed)
 async function refreshUser(uid) {
     try {
         const snap = await getDoc(doc(db, 'users', uid));
@@ -257,7 +272,7 @@ async function refreshUser(uid) {
 window.addEventListener('wallet-changed', (e) => refreshUser(e.detail.uid));
 
 /* ==========================================================================
-   WITHDRAWAL REQUESTS (only PENDING ones are fetched)
+   WITHDRAWAL REQUESTS
    ========================================================================== */
 function paymentDetailsHTML(r) {
     const pd = r.paymentDetails || {};
@@ -423,32 +438,31 @@ function listenDepositRequests() {
 }
 
 /* ==========================================================================
-   SUB-ADMINS
+   ADMINS / SUB-ADMINS MANAGEMENT
    ========================================================================== */
 window.addSubAdmin = async () => {
     const input = $('subAdminEmail');
     const email = (input?.value || '').trim().toLowerCase();
-    if (!isValidEmail(email)) return notifyError('Sahi Sub-Admin email enter karein!');
-    if (email === SUPER_ADMIN_EMAIL.toLowerCase()) return notifyError('Super Admin ko sub-admin banane ki zaroorat nahi.');
+    if (!isValidEmail(email)) return notifyError('Sahi Admin email enter karein!');
 
     try {
-        await setDoc(doc(db, 'sub_admins', email), {
-            email, addedBy: auth.currentUser?.email || 'SuperAdmin', createdAt: serverTimestamp()
+        await setDoc(doc(db, 'admins', email), {
+            email, addedBy: auth.currentUser?.email || 'Admin', createdAt: serverTimestamp()
         });
         input.value = '';
-        toast('Sub-Admin added!');
+        toast('New Admin added successfully!');
     } catch (e) {
-        notifyError('Error adding sub-admin: ' + e.message);
+        notifyError('Error adding admin: ' + e.message);
     }
 };
 
-function listenSubAdmins() {
+function listenAdmins() {
     const list = $('subAdminList');
     if (!list) return;
 
-    onSnapshot(collection(db, 'sub_admins'), (snapshot) => {
+    onSnapshot(collection(db, 'admins'), (snapshot) => {
         if (snapshot.empty) {
-            list.innerHTML = `<div style="font-size:11px; color:var(--text-muted);">No sub-admins added yet.</div>`;
+            list.innerHTML = `<div style="font-size:11px; color:var(--text-muted);">No extra admins added yet.</div>`;
             return;
         }
         list.innerHTML = snapshot.docs.map(d => `
@@ -458,17 +472,23 @@ function listenSubAdmins() {
                     <i class="fa-solid fa-xmark"></i> Remove
                 </button>
             </div>`).join('');
-    }, (err) => console.error('Sub-admins listener:', err));
+    }, (err) => console.error('Admins listener:', err));
 
     list.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-action="remove-sub"]');
         if (!btn) return;
-        if (!confirm(`Remove ${btn.dataset.id} from sub-admins?`)) return;
+        const targetEmail = btn.dataset.id;
+
+        if (targetEmail.toLowerCase() === auth.currentUser?.email?.toLowerCase()) {
+            return notifyError('Aap apne khud ke admin access ko remove nahi kar sakte.');
+        }
+
+        if (!confirm(`Remove ${targetEmail} from admins?`)) return;
         try {
-            await deleteDoc(doc(db, 'sub_admins', btn.dataset.id));
-            toast('Sub-Admin removed!');
+            await deleteDoc(doc(db, 'admins', targetEmail));
+            toast('Admin access removed!');
         } catch (err) {
-            notifyError('Error removing sub-admin: ' + err.message);
+            notifyError('Error removing admin: ' + err.message);
         }
     });
 }
