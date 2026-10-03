@@ -14,11 +14,12 @@ import { setupAnnouncements, setupTournaments, setupResults } from "./admin-comm
 
 const $ = (id) => document.getElementById(id);
 
-// Admin check using Firestore admins collection
+// Admin check using Firestore admins collection (Doc ID = email)
 async function checkIsAdmin(user) {
     if (!user || !user.email) return false;
     try {
-        const adminSnap = await getDoc(doc(db, 'admins', user.email.toLowerCase()));
+        const cleanEmail = user.email.trim().toLowerCase();
+        const adminSnap = await getDoc(doc(db, 'admins', cleanEmail));
         return adminSnap.exists();
     } catch (e) {
         console.error("Admin verification error:", e);
@@ -64,7 +65,7 @@ window.adminLogout = async () => {
 };
 
 /* ==========================================================================
-   AUTH STATE (panels are initialised exactly once)
+   AUTH STATE
    ========================================================================== */
 let panelsStarted = false;
 
@@ -485,7 +486,7 @@ function listenAdmins() {
 
         if (!confirm(`Remove ${targetEmail} from admins?`)) return;
         try {
-            await deleteDoc(doc(db, 'admins', targetEmail));
+            await deleteDoc(doc(db, 'admins', targetEmail.toLowerCase()));
             toast('Admin access removed!');
         } catch (err) {
             notifyError('Error removing admin: ' + err.message);
