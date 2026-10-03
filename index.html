@@ -72,10 +72,10 @@
                     <input type="text" id="tournamentSearch" placeholder="Search matches..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-orange-500/50">
                 </div>
                 <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
-                    <button onclick="filterMode('ALL')" class="filter-chip active-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition">ALL</button>
-                    <button onclick="filterMode('SOLO')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition">SOLO</button>
-                    <button onclick="filterMode('DUO')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition">DUO</button>
-                    <button onclick="filterMode('SQUAD')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition">SQUAD</button>
+                    <button onclick="filterMode('ALL')" class="filter-chip active-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-orange-500 text-slate-950 border-orange-500">ALL</button>
+                    <button onclick="filterMode('SOLO')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-slate-900 text-slate-400 border-slate-800">SOLO</button>
+                    <button onclick="filterMode('DUO')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-slate-900 text-slate-400 border-slate-800">DUO</button>
+                    <button onclick="filterMode('SQUAD')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-slate-900 text-slate-400 border-slate-800">SQUAD</button>
                 </div>
             </div>
 
@@ -217,13 +217,11 @@
                 <button onclick="closeModal('authModal')" class="text-slate-400 hover:text-slate-200 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
 
-            <!-- TAB TOGGLE BETWEEN LOGIN AND REGISTER -->
             <div class="grid grid-cols-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-bold">
                 <button id="toggleLoginTabBtn" onclick="toggleAuthMode('login')" class="py-2 rounded-lg bg-orange-500 text-slate-950 transition">Login</button>
                 <button id="toggleSignupTabBtn" onclick="toggleAuthMode('signup')" class="py-2 rounded-lg text-slate-400 transition">Sign Up</button>
             </div>
 
-            <!-- EMAIL & PASS FORM -->
             <form id="authEmailForm" class="space-y-3.5">
                 <div id="authNameGroup" class="hidden space-y-1">
                     <label class="text-[11px] text-slate-400 font-semibold">Full Name</label>
@@ -251,7 +249,6 @@
                 <div class="flex-grow border-t border-slate-800"></div>
             </div>
 
-            <!-- GOOGLE LOGIN ALTERNATIVE -->
             <button id="googleAuthBtn" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-2 active:scale-95">
                 <i class="fa-brands fa-google text-orange-500"></i> Continue with Google
             </button>
@@ -280,6 +277,9 @@
                     <span id="modalEntryFee" class="text-xs font-black text-orange-400">₹0</span>
                 </div>
             </div>
+
+            <!-- Dynamic Container for Map, Mode, Time & Room Credentials -->
+            <div id="modalExtraDetails"></div>
 
             <div>
                 <span class="text-xs text-slate-400 font-bold block mb-2">Slot Visualizer</span>
