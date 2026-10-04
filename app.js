@@ -31,25 +31,38 @@ let tournamentsData = [];
 let currentSelectedMatch = null;
 let activeAuthMode = 'login'; // 'login' or 'signup'
 
-// --- HELPER FUNCTION: DATE/TIME FORMATTER ---
+// --- HELPER FUNCTION: DATE/TIME FORMATTER (FIXED) ---
 function formatMatchTime(timeVal) {
     if (!timeVal) return "To Be Announced";
     
-    // If string already (e.g., "05 Oct, 8:00 PM")
-    if (typeof timeVal === 'string') return timeVal;
-    
-    // If Firestore Timestamp Object
-    if (timeVal.toDate && typeof timeVal.toDate === 'function') {
-        return new Date(timeVal.toDate()).toLocaleString('en-IN', {
-            day: '2-digit',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
+    try {
+        // If Firestore Timestamp Object
+        if (timeVal && typeof timeVal.toDate === 'function') {
+            return timeVal.toDate().toLocaleString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+        
+        // If JS Date string or epoch number
+        const dateObj = new Date(timeVal);
+        if (!isNaN(dateObj.getTime())) {
+            return dateObj.toLocaleString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+    } catch (e) {
+        console.error("Time parsing error:", e);
     }
     
-    return "To Be Announced";
+    return String(timeVal);
 }
 
 // --- MODAL UTILITIES ---
@@ -314,12 +327,13 @@ window.filterMode = function(mode) {
 document.getElementById("tournamentSearch")?.addEventListener("input", (e) => {
     const term = e.target.value.toLowerCase();
     const filtered = tournamentsData.filter(t => {
-        const nameStr = t.title || t.name || t.matchName || "";
+        const nameStr = t.title || t.name || t.tournamentName || t.matchName || "";
         return nameStr.toLowerCase().includes(term);
     });
     renderTournamentsGrid(filtered);
 });
 
+// --- FIXED RENDER GRID FUNCTION ---
 function renderTournamentsGrid(matches) {
     const grid = document.getElementById("tournamentsGrid");
     if (!grid) return;
@@ -330,28 +344,35 @@ function renderTournamentsGrid(matches) {
     }
 
     grid.innerHTML = matches.map(t => {
-        // Fallbacks for Name, Banner & Time
-        const title = t.title || t.name || t.matchName || "Free Fire Match";
-        const photo = t.banner || t.image || t.thumbnail || t.photoURL || "https://via.placeholder.com/400x200?text=Booyah+HUB+Match";
-        const formattedTime = formatMatchTime(t.matchTime || t.startTime || t.time);
+        // Fallbacks for Tournament Name (Admin Panel Safe)
+        const title = t.title || t.name || t.tournamentName || t.matchName || "Free Fire Match";
+
+        // Fallbacks for Banner / Thumbnail Photo
+        const photo = t.bannerUrl || t.banner || t.thumbnail || t.imageUrl || t.image || t.photoURL || t.qrCodeUrl || "https://via.placeholder.com/400x200?text=Booyah+HUB+Match";
+
+        // Fallbacks for Date & Match Time
+        const rawTime = t.matchTime || t.schedule || t.time || t.startTime || t.createdAt;
+        const formattedTime = formatMatchTime(rawTime);
 
         const prize = t.prizePool ?? t.prize ?? t.prizeMoney ?? 0;
-        const perKill = t.perKill ?? t.killPrize ?? 0;
-        const entry = t.entryFee ?? t.entry ?? 0;
-        const mode = t.mode || "SOLO";
-        const map = t.map || "BERMUDA";
-        const total = Number(t.totalSlots || 8);
-        const filled = Number(t.registeredSlots || 0);
-        const pct = Math.min(100, Math.round((filled / total) * 100));
+        const perKill = t.perKill ?? t.killBonus ?? t.killPrize ?? 0;
+        const entry = t.entryFee ?? t.fee ?? t.entry ?? 0;
+        const mode = t.mode || t.type || "SOLO";
+        const map = t.map || t.mapName || "BERMUDA";
+        
+        const total = Number(t.totalSlots || t.maxPlayers || t.slots || 8);
+        const joinedList = Array.isArray(t.joinedPlayers) ? t.joinedPlayers.length : 0;
+        const filled = Number(t.registeredSlots || t.joinedSlots || joinedList || 0);
+        const pct = Math.min(100, Math.round((filled / Math.max(total, 1)) * 100));
 
         return `
             <div class="bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden flex flex-col justify-between hover:border-orange-500/40 transition group">
                 <!-- Banner Photo -->
                 <div class="relative h-36 w-full bg-slate-950 overflow-hidden">
-                    <img src="${photo}" alt="${title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.src='https://via.placeholder.com/400x200?text=Booyah+HUB+Match'">
+                    <img src="${photo}" alt="${title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x200?text=Booyah+HUB+Match';">
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
                     <span class="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/80 backdrop-blur-md text-orange-400 border border-orange-500/30 text-[10px] font-black rounded-md uppercase">${mode} • ${map}</span>
-                    <span class="absolute top-2 right-2 bg-orange-500 text-slate-950 px-2.5 py-0.5 rounded-lg text-xs font-black shadow-md">₹${entry}</span>
+                    <span class="absolute top-2 right-2 bg-orange-500 text-slate-950 px-2.5 py-0.5 rounded-lg text-xs font-black shadow-md">${entry > 0 ? '₹' + entry : 'FREE'}</span>
                 </div>
 
                 <div class="p-4 space-y-3">
@@ -394,7 +415,7 @@ function renderTournamentsGrid(matches) {
     }).join("");
 }
 
-// --- OPEN MATCH DETAILS ---
+// --- OPEN MATCH DETAILS (FIXED) ---
 window.openMatchDetails = function(matchId) {
     currentSelectedMatch = tournamentsData.find(t => t.id === matchId);
     if (!currentSelectedMatch) return;
@@ -402,13 +423,15 @@ window.openMatchDetails = function(matchId) {
     const t = currentSelectedMatch;
 
     // Fallback Field Mapping
-    const title = t.title || t.name || t.matchName || "Free Fire Match";
-    const formattedTime = formatMatchTime(t.matchTime || t.startTime || t.time);
+    const title = t.title || t.name || t.tournamentName || t.matchName || "Free Fire Match";
+    const rawTime = t.matchTime || t.schedule || t.time || t.startTime || t.createdAt;
+    const formattedTime = formatMatchTime(rawTime);
+    
     const prize = t.prizePool ?? t.prize ?? t.prizeMoney ?? 0;
-    const perKill = t.perKill ?? t.killPrize ?? 0;
-    const entry = t.entryFee ?? t.entry ?? 0;
-    const mode = t.mode || "SOLO";
-    const map = t.map || "BERMUDA";
+    const perKill = t.perKill ?? t.killBonus ?? t.killPrize ?? 0;
+    const entry = t.entryFee ?? t.fee ?? t.entry ?? 0;
+    const mode = t.mode || t.type || "SOLO";
+    const map = t.map || t.mapName || "BERMUDA";
     const roomId = t.roomId || "Will be visible before match";
     const roomPassword = t.roomPassword || "Will be visible before match";
 
@@ -421,7 +444,7 @@ window.openMatchDetails = function(matchId) {
     if (titleEl) titleEl.textContent = title;
     if (prizeEl) prizeEl.textContent = `₹${prize}`;
     if (killEl) killEl.textContent = `₹${perKill}`;
-    if (entryEl) entryEl.textContent = `₹${entry}`;
+    if (entryEl) entryEl.textContent = entry > 0 ? `₹${entry}` : "FREE";
 
     // Dynamic Extra Details Injection
     const extraDetailsContainer = document.getElementById("modalExtraDetails");
@@ -455,8 +478,9 @@ window.openMatchDetails = function(matchId) {
     const seatGrid = document.getElementById("modalSeatGrid");
     if (seatGrid) {
         seatGrid.innerHTML = "";
-        const totalSlots = Number(t.totalSlots || 8);
-        const filledSlots = Number(t.registeredSlots || 0);
+        const totalSlots = Number(t.totalSlots || t.maxPlayers || t.slots || 8);
+        const joinedList = Array.isArray(t.joinedPlayers) ? t.joinedPlayers.length : 0;
+        const filledSlots = Number(t.registeredSlots || t.joinedSlots || joinedList || 0);
 
         for (let i = 1; i <= totalSlots; i++) {
             const isFilled = i <= filledSlots;
@@ -492,7 +516,7 @@ function openRegistrationModal() {
     const t = currentSelectedMatch;
     if (!t) return;
 
-    const mode = (t.mode || "SOLO").toUpperCase();
+    const mode = (t.mode || t.type || "SOLO").toUpperCase();
     let playerSlots = 1;
     if (mode === "DUO") playerSlots = 2;
     if (mode === "SQUAD") playerSlots = 4;
@@ -515,7 +539,10 @@ function openRegistrationModal() {
     }
 
     const deductFee = document.getElementById("registerDeductFee");
-    if (deductFee) deductFee.textContent = `₹${t.entryFee || t.entry || 0}`;
+    if (deductFee) {
+        const entry = t.entryFee ?? t.fee ?? t.entry ?? 0;
+        deductFee.textContent = `₹${entry}`;
+    }
 
     window.openModal("registerModal");
 }
@@ -526,7 +553,7 @@ document.getElementById("tournamentRegistrationForm")?.addEventListener("submit"
     if (!currentUser || !currentSelectedMatch) return;
 
     const tId = currentSelectedMatch.id;
-    const mode = (currentSelectedMatch.mode || "SOLO").toUpperCase();
+    const mode = (currentSelectedMatch.mode || currentSelectedMatch.type || "SOLO").toUpperCase();
     let playerSlots = 1;
     if (mode === "DUO") playerSlots = 2;
     if (mode === "SQUAD") playerSlots = 4;
@@ -553,9 +580,10 @@ document.getElementById("tournamentRegistrationForm")?.addEventListener("submit"
             const uData = userSnap.data();
             const mData = matchSnap.data();
 
-            const entryFee = Number(mData.entryFee || mData.entry || 0);
-            const totalSlots = Number(mData.totalSlots || 8);
-            const registeredSlots = Number(mData.registeredSlots || 0);
+            const entryFee = Number(mData.entryFee ?? mData.fee ?? mData.entry ?? 0);
+            const totalSlots = Number(mData.totalSlots ?? mData.maxPlayers ?? mData.slots ?? 8);
+            const joinedList = Array.isArray(mData.joinedPlayers) ? mData.joinedPlayers.length : 0;
+            const registeredSlots = Number(mData.registeredSlots ?? mData.joinedSlots ?? joinedList ?? 0);
 
             if (registeredSlots >= totalSlots) throw "Tournament slots are fully filled!";
 
@@ -595,7 +623,7 @@ document.getElementById("tournamentRegistrationForm")?.addEventListener("submit"
                 type: "TOURNAMENT_ENTRY",
                 amount: entryFee,
                 status: "SUCCESS",
-                matchTitle: mData.title || mData.name || mData.matchName || "Free Fire Match",
+                matchTitle: mData.title || mData.name || mData.tournamentName || mData.matchName || "Free Fire Match",
                 createdAt: serverTimestamp()
             });
         });
