@@ -10,12 +10,12 @@ import {
 
 // --- FIREBASE CONFIGURATION ---
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCDnwGV_rW7BFjivz_QJ7yCPej7ypdI36Y",
+  authDomain: "booyahhub2509.firebaseapp.com",
+  projectId: "booyahhub2509",
+  storageBucket: "booyahhub2509.firebasestorage.app",
+  messagingSenderId: "524409836628",
+  appId: "1:524409836628:web:fa99832124c5d9862949c1"
 };
 
 // Initialize Firebase
@@ -246,13 +246,28 @@ document.getElementById("profileForm")?.addEventListener("submit", async (e) => 
 
 // --- TOURNAMENTS REALTIME LISTENER & FILTERING ---
 function listenTournaments() {
-    const q = query(collection(db, "tournaments"), orderBy("createdAt", "desc"));
-    onSnapshot(q, (snapshot) => {
+    const tournamentsRef = collection(db, "tournaments");
+    
+    onSnapshot(tournamentsRef, (snapshot) => {
         tournamentsData = [];
         snapshot.forEach(docSnap => {
             tournamentsData.push({ id: docSnap.id, ...docSnap.data() });
         });
+        
+        // Local sorting by createdAt if present
+        tournamentsData.sort((a, b) => {
+            const timeA = a.createdAt?.seconds || 0;
+            const timeB = b.createdAt?.seconds || 0;
+            return timeB - timeA;
+        });
+
         renderTournamentsGrid(tournamentsData);
+    }, (error) => {
+        console.error("Error fetching tournaments:", error);
+        const grid = document.getElementById("tournamentsGrid");
+        if (grid) {
+            grid.innerHTML = `<div class="col-span-full text-center py-12 text-rose-400 text-xs font-bold">Error loading matches: ${error.message}</div>`;
+        }
     });
 }
 listenTournaments();
@@ -340,7 +355,7 @@ function renderTournamentsGrid(matches) {
     }).join("");
 }
 
-// --- OPEN MATCH DETAILS (WITH DYNAMIC EXTRA DETAILS INJECTION) ---
+// --- OPEN MATCH DETAILS ---
 window.openMatchDetails = function(matchId) {
     currentSelectedMatch = tournamentsData.find(t => t.id === matchId);
     if (!currentSelectedMatch) return;
@@ -382,7 +397,7 @@ window.openMatchDetails = function(matchId) {
     if (killEl) killEl.textContent = `₹${perKill}`;
     if (entryEl) entryEl.textContent = `₹${entry}`;
 
-    // Dynamic Injection into modalExtraDetails container[span_2](start_span)[span_2](end_span)
+    // Dynamic Injection into modalExtraDetails container
     const extraDetailsContainer = document.getElementById("modalExtraDetails");
     if (extraDetailsContainer) {
         extraDetailsContainer.innerHTML = `
@@ -579,12 +594,12 @@ document.getElementById("addMoneyForm")?.addEventListener("submit", async (e) =>
             userId: currentUser.uid,
             userEmail: currentUser.email,
             amount: amount,
-            utr: utr,
+            utrNumber: utr,
             status: "PENDING",
             createdAt: serverTimestamp()
         });
 
-        alert("Deposit request submitted! Admin will verify your UTR shorty.");
+        alert("Deposit request submitted! Admin will verify your UTR shortly.");
         closeModal("addMoneyModal");
     } catch (err) {
         alert(err.message);
@@ -608,7 +623,7 @@ document.getElementById("withdrawForm")?.addEventListener("submit", async (e) =>
             userEmail: currentUser.email,
             amount: amount,
             method: method,
-            paymentDetails: details,
+            paymentDetails: { upiId: details },
             status: "PENDING",
             createdAt: serverTimestamp()
         });
@@ -620,7 +635,7 @@ document.getElementById("withdrawForm")?.addEventListener("submit", async (e) =>
     }
 });
 
-// --- TRANSACTION HISTORY & LEADERBOARD REALTIME LISTENERS ---
+// --- TRANSACTION HISTORY & LEADERBOARD LISTENERS ---
 function listenUserTransactions(userId) {
     const q = query(
         collection(db, "transactions"),
