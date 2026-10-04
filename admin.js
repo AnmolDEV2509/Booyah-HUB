@@ -3,10 +3,10 @@ import { db, auth } from "./firebase-config.js";
 import {
     collection, doc, onSnapshot, setDoc, deleteDoc, getDoc, getDocs,
     query, where, runTransaction, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
     onAuthStateChanged, signInWithEmailAndPassword, signOut
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
     esc, money, num, getBalances, isValidEmail, debounce, toast, notifyError, authErrorMessage
 } from "./utils.js";
@@ -229,7 +229,8 @@ $('adminUsersWalletList')?.addEventListener('click', async (e) => {
             const before = getBalances(snap.data());
             const after = { dep: depChanged ? newDep : before.dep, win: winChanged ? newWin : before.win };
 
-            tx.update(userRef, { depositBalance: after.dep, winningBalance: after.win });
+            // Field fixed to winningsBalance
+            tx.update(userRef, { depositBalance: after.dep, winningsBalance: after.win });
             tx.set(doc(collection(db, 'wallet_logs')), {
                 userId: uid,
                 userEmail: snap.data().email || '',
@@ -263,8 +264,10 @@ async function refreshUser(uid) {
         if (typing) return;
         for (const [name, v] of [['dep', dep], ['win', win]]) {
             const input = card.querySelector(`[name="${name}"]`);
-            input.value = v;
-            input.dataset.orig = v;
+            if (input) {
+                input.value = v;
+                input.dataset.orig = v;
+            }
         }
     } catch (e) {
         console.error('refreshUser failed:', e);
@@ -343,7 +346,8 @@ function listenWithdrawalRequests() {
                     if (!uSnap.exists()) throw new Error('User nahi mila.');
 
                     const { dep, win } = getBalances(uSnap.data());
-                    tx.update(userRef, { depositBalance: dep, winningBalance: money(win + money(r.amount)) });
+                    // Field fixed to winningsBalance
+                    tx.update(userRef, { depositBalance: dep, winningsBalance: money(win + money(r.amount)) });
                     tx.update(reqRef, { status: 'REJECTED', ...reviewer() });
                 });
                 toast('Withdrawal Rejected & amount refunded.');
@@ -414,7 +418,8 @@ function listenDepositRequests() {
                     if (!uSnap.exists()) throw new Error('User nahi mila.');
 
                     const { dep, win } = getBalances(uSnap.data());
-                    tx.update(userRef, { depositBalance: money(dep + amount), winningBalance: win });
+                    // Field fixed to winningsBalance
+                    tx.update(userRef, { depositBalance: money(dep + amount), winningsBalance: win });
                     tx.update(reqRef, { status: 'APPROVED', ...reviewer() });
                 });
                 toast('Deposit Approved & wallet updated!');
