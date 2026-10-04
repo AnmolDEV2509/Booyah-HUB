@@ -31,6 +31,27 @@ let tournamentsData = [];
 let currentSelectedMatch = null;
 let activeAuthMode = 'login'; // 'login' or 'signup'
 
+// --- HELPER FUNCTION: DATE/TIME FORMATTER ---
+function formatMatchTime(timeVal) {
+    if (!timeVal) return "To Be Announced";
+    
+    // If string already (e.g., "05 Oct, 8:00 PM")
+    if (typeof timeVal === 'string') return timeVal;
+    
+    // If Firestore Timestamp Object
+    if (timeVal.toDate && typeof timeVal.toDate === 'function') {
+        return new Date(timeVal.toDate()).toLocaleString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    }
+    
+    return "To Be Announced";
+}
+
 // --- MODAL UTILITIES ---
 window.openModal = function(modalId) {
     const modal = document.getElementById(modalId);
@@ -292,7 +313,10 @@ window.filterMode = function(mode) {
 
 document.getElementById("tournamentSearch")?.addEventListener("input", (e) => {
     const term = e.target.value.toLowerCase();
-    const filtered = tournamentsData.filter(t => (t.title || "").toLowerCase().includes(term));
+    const filtered = tournamentsData.filter(t => {
+        const nameStr = t.title || t.name || t.matchName || "";
+        return nameStr.toLowerCase().includes(term);
+    });
     renderTournamentsGrid(filtered);
 });
 
@@ -306,8 +330,12 @@ function renderTournamentsGrid(matches) {
     }
 
     grid.innerHTML = matches.map(t => {
-        const title = t.title || "Free Fire Tournament";
-        const prize = t.prizePool ?? t.prize ?? 0;
+        // Fallbacks for Name, Banner & Time
+        const title = t.title || t.name || t.matchName || "Free Fire Match";
+        const photo = t.banner || t.image || t.thumbnail || t.photoURL || "https://via.placeholder.com/400x200?text=Booyah+HUB+Match";
+        const formattedTime = formatMatchTime(t.matchTime || t.startTime || t.time);
+
+        const prize = t.prizePool ?? t.prize ?? t.prizeMoney ?? 0;
         const perKill = t.perKill ?? t.killPrize ?? 0;
         const entry = t.entryFee ?? t.entry ?? 0;
         const mode = t.mode || "SOLO";
@@ -317,39 +345,50 @@ function renderTournamentsGrid(matches) {
         const pct = Math.min(100, Math.round((filled / total) * 100));
 
         return `
-            <div class="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between space-y-3 hover:border-orange-500/40 transition">
-                <div class="flex items-start justify-between gap-2">
-                    <div>
-                        <span class="px-2 py-0.5 bg-orange-500/10 text-orange-400 border border-orange-500/20 text-[10px] font-black rounded-md uppercase">${mode} • ${map}</span>
-                        <h3 class="font-bold text-slate-100 text-sm mt-1.5 line-clamp-1">${title}</h3>
-                    </div>
-                    <span class="bg-slate-950 px-2.5 py-1 rounded-xl border border-slate-800 text-xs font-black text-orange-400">₹${entry}</span>
+            <div class="bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden flex flex-col justify-between hover:border-orange-500/40 transition group">
+                <!-- Banner Photo -->
+                <div class="relative h-36 w-full bg-slate-950 overflow-hidden">
+                    <img src="${photo}" alt="${title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.src='https://via.placeholder.com/400x200?text=Booyah+HUB+Match'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+                    <span class="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/80 backdrop-blur-md text-orange-400 border border-orange-500/30 text-[10px] font-black rounded-md uppercase">${mode} • ${map}</span>
+                    <span class="absolute top-2 right-2 bg-orange-500 text-slate-950 px-2.5 py-0.5 rounded-lg text-xs font-black shadow-md">₹${entry}</span>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 text-center">
+                <div class="p-4 space-y-3">
                     <div>
-                        <span class="text-[9px] text-slate-500 block font-bold">PRIZE POOL</span>
-                        <span class="text-xs font-black text-amber-400">₹${prize}</span>
+                        <h3 class="font-bold text-slate-100 text-sm line-clamp-1">${title}</h3>
+                        <!-- Match Time Badge -->
+                        <div class="flex items-center gap-1.5 mt-1 text-[11px] font-semibold text-slate-400">
+                            <i class="fa-regular fa-clock text-orange-400"></i>
+                            <span>${formattedTime}</span>
+                        </div>
                     </div>
-                    <div>
-                        <span class="text-[9px] text-slate-500 block font-bold">PER KILL</span>
-                        <span class="text-xs font-black text-emerald-400">₹${perKill}</span>
-                    </div>
-                </div>
 
-                <div class="space-y-1">
-                    <div class="flex justify-between text-[10px] font-bold">
-                        <span class="text-slate-400">Spots Joined</span>
-                        <span class="text-orange-400">${filled} / ${total}</span>
+                    <div class="grid grid-cols-2 gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 text-center">
+                        <div>
+                            <span class="text-[9px] text-slate-500 block font-bold">PRIZE POOL</span>
+                            <span class="text-xs font-black text-amber-400">₹${prize}</span>
+                        </div>
+                        <div>
+                            <span class="text-[9px] text-slate-500 block font-bold">PER KILL</span>
+                            <span class="text-xs font-black text-emerald-400">₹${perKill}</span>
+                        </div>
                     </div>
-                    <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-                        <div class="h-full bg-orange-500 rounded-full transition-all" style="width: ${pct}%"></div>
-                    </div>
-                </div>
 
-                <button onclick="openMatchDetails('${t.id}')" class="w-full bg-slate-950 hover:bg-orange-500 hover:text-slate-950 text-slate-200 border border-slate-800 font-extrabold py-2.5 rounded-xl transition text-xs active:scale-95">
-                    View Details
-                </button>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[10px] font-bold">
+                            <span class="text-slate-400">Spots Joined</span>
+                            <span class="text-orange-400">${filled} / ${total}</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                            <div class="h-full bg-orange-500 rounded-full transition-all" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+
+                    <button onclick="openMatchDetails('${t.id}')" class="w-full bg-slate-950 hover:bg-orange-500 hover:text-slate-950 text-slate-200 border border-slate-800 font-extrabold py-2.5 rounded-xl transition text-xs active:scale-95">
+                        View Details
+                    </button>
+                </div>
             </div>
         `;
     }).join("");
@@ -362,8 +401,9 @@ window.openMatchDetails = function(matchId) {
 
     const t = currentSelectedMatch;
 
-    // Fallback Mapping
-    const title = t.title || "Free Fire Tournament";
+    // Fallback Field Mapping
+    const title = t.title || t.name || t.matchName || "Free Fire Match";
+    const formattedTime = formatMatchTime(t.matchTime || t.startTime || t.time);
     const prize = t.prizePool ?? t.prize ?? t.prizeMoney ?? 0;
     const perKill = t.perKill ?? t.killPrize ?? 0;
     const entry = t.entryFee ?? t.entry ?? 0;
@@ -371,20 +411,6 @@ window.openMatchDetails = function(matchId) {
     const map = t.map || "BERMUDA";
     const roomId = t.roomId || "Will be visible before match";
     const roomPassword = t.roomPassword || "Will be visible before match";
-
-    // Date & Time formatting
-    let formattedTime = "To Be Announced";
-    const rawTime = t.startTime || t.matchTime;
-    if (rawTime) {
-        if (typeof rawTime === 'string') {
-            formattedTime = rawTime;
-        } else if (rawTime.toDate) {
-            formattedTime = new Date(rawTime.toDate()).toLocaleString('en-IN', { 
-                dateStyle: 'medium', 
-                timeStyle: 'short' 
-            });
-        }
-    }
 
     // Set Modal Grid Details
     const titleEl = document.getElementById("modalMatchTitle");
@@ -397,7 +423,7 @@ window.openMatchDetails = function(matchId) {
     if (killEl) killEl.textContent = `₹${perKill}`;
     if (entryEl) entryEl.textContent = `₹${entry}`;
 
-    // Dynamic Injection into modalExtraDetails container
+    // Dynamic Extra Details Injection
     const extraDetailsContainer = document.getElementById("modalExtraDetails");
     if (extraDetailsContainer) {
         extraDetailsContainer.innerHTML = `
@@ -569,7 +595,7 @@ document.getElementById("tournamentRegistrationForm")?.addEventListener("submit"
                 type: "TOURNAMENT_ENTRY",
                 amount: entryFee,
                 status: "SUCCESS",
-                matchTitle: mData.title || "Free Fire Match",
+                matchTitle: mData.title || mData.name || mData.matchName || "Free Fire Match",
                 createdAt: serverTimestamp()
             });
         });
