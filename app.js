@@ -31,6 +31,10 @@ let tournamentsData = [];
 let currentSelectedMatch = null;
 let activeAuthMode = 'login'; // 'login' or 'signup'
 
+// Extract Referrer UID from URL (?ref=USER_UID)
+const urlParams = new URLSearchParams(window.location.search);
+const referrerUid = urlParams.get('ref');
+
 // --- HELPER FUNCTION: DATE/TIME FORMATTER ---
 function formatMatchTime(timeVal) {
     if (!timeVal) return "To Be Announced";
@@ -76,6 +80,19 @@ window.copyShareLink = function(matchId, event) {
         });
     } else {
         prompt("Copy this match link:", shareUrl);
+    }
+};
+
+window.copyReferralLink = function() {
+    const refInput = document.getElementById("referralLinkInput");
+    if (refInput && currentUser) {
+        navigator.clipboard.writeText(refInput.value).then(() => {
+            alert("Referral link copied! Share with your friends to earn points! 🚀");
+        }).catch(() => {
+            prompt("Copy your referral link:", refInput.value);
+        });
+    } else {
+        alert("Please login first to get your referral link!");
     }
 };
 
@@ -188,11 +205,17 @@ onAuthStateChanged(auth, async (user) => {
                     photoURL: user.photoURL || "https://via.placeholder.com/150",
                     depositBalance: 0,
                     winningsBalance: 0,
+                    referralCount: 0,
+                    referredBy: (referrerUid && referrerUid !== user.uid) ? referrerUid : null,
                     ign: "",
                     gameUid: "",
                     createdAt: serverTimestamp()
                 };
                 setDoc(userRef, newUserData);
+
+                if (referrerUid && referrerUid !== user.uid) {
+                    processReferralReward(referrerUid, user.uid);
+                }
             }
         });
 
@@ -204,6 +227,57 @@ onAuthStateChanged(auth, async (user) => {
         updateUIWithUserData();
     }
 });
+
+// REFERRAL REWARD TRANSACTION (+5 Points & Max 6 Limit)
+async function processReferralReward(referrerId, newUserId) {
+    const referralLogRef = doc(db, "referrals", newUserId);
+    const referrerRef = doc(db, "users", referrerId);
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const refLogSnap = await transaction.get(referralLogRef);
+            if (refLogSnap.exists()) return;
+
+            const referrerSnap = await transaction.get(referrerRef);
+            if (!referrerSnap.exists()) return;
+
+            const referrerData = referrerSnap.data();
+            const currentCount = referrerData.referralCount || 0;
+
+            // Strict limit of 6 referrals
+            if (currentCount >= 6) {
+                console.log("Referral limit reached for this user (Max 6 allowed).");
+                return;
+            }
+
+            const currentDep = referrerData.depositBalance || 0;
+
+            transaction.update(referrerRef, {
+                depositBalance: currentDep + 5,
+                referralCount: currentCount + 1
+            });
+
+            transaction.set(referralLogRef, {
+                referrerUid: referrerId,
+                referredUid: newUserId,
+                rewardAmount: 5,
+                createdAt: serverTimestamp()
+            });
+
+            const txRef = doc(collection(db, "transactions"));
+            transaction.set(txRef, {
+                userId: referrerId,
+                type: "REFERRAL_REWARD",
+                amount: 5,
+                status: "SUCCESS",
+                createdAt: serverTimestamp()
+            });
+        });
+        console.log("Referral Bonus Successfully Added!");
+    } catch (e) {
+        console.error("Referral process error:", e);
+    }
+}
 
 // Update UI with User Profile Data
 function updateUIWithUserData() {
@@ -218,6 +292,9 @@ function updateUIWithUserData() {
     const profileAvatar = document.getElementById("profileCardAvatar");
     const inputIgn = document.getElementById("profileIgn");
     const inputUid = document.getElementById("profileUid");
+
+    const refInput = document.getElementById("referralLinkInput");
+    const refBadge = document.getElementById("referralBadge");
 
     if (userData) {
         const deposit = userData.depositBalance || 0;
@@ -236,11 +313,27 @@ function updateUIWithUserData() {
 
         if (inputIgn && !inputIgn.value) inputIgn.value = userData.ign || "";
         if (inputUid && !inputUid.value) inputUid.value = userData.gameUid || "";
+
+        if (refInput && currentUser) {
+            refInput.value = `${window.location.origin}${window.location.pathname}?ref=${currentUser.uid}`;
+        }
+
+        if (refBadge) {
+            const count = userData.referralCount || 0;
+            if (count >= 6) {
+                refBadge.className = "px-2 py-0.5 bg-rose-500/10 text-rose-400 text-[10px] font-extrabold rounded-md border border-rose-500/20";
+                refBadge.textContent = "Limit Reached (6/6)";
+            } else {
+                refBadge.className = "px-2 py-0.5 bg-orange-500/10 text-orange-400 text-[10px] font-extrabold rounded-md border border-orange-500/20";
+                refBadge.textContent = `${count} / 6 Used`;
+            }
+        }
     } else {
         if (navWallet) navWallet.textContent = "₹0";
         if (totalBal) totalBal.textContent = "₹0";
         if (depBal) depBal.textContent = "₹0";
         if (winBal) winBal.textContent = "₹0";
+        if (refInput) refInput.value = "Login to see your link";
     }
 }
 
@@ -254,17 +347,25 @@ document.getElementById("authEmailForm")?.addEventListener("submit", async (e) =
     try {
         if (activeAuthMode === 'signup') {
             const res = await createUserWithEmailAndPassword(auth, email, password);
-            await setDoc(doc(db, "users", res.user.uid), {
-                uid: res.user.uid,
+            const newUid = res.user.uid;
+
+            await setDoc(doc(db, "users", newUid), {
+                uid: newUid,
                 name: name,
                 email: email,
                 photoURL: "https://via.placeholder.com/150",
                 depositBalance: 0,
                 winningsBalance: 0,
+                referralCount: 0,
+                referredBy: (referrerUid && referrerUid !== newUid) ? referrerUid : null,
                 ign: "",
                 gameUid: "",
                 createdAt: serverTimestamp()
             });
+
+            if (referrerUid && referrerUid !== newUid) {
+                await processReferralReward(referrerUid, newUid);
+            }
         } else {
             await signInWithEmailAndPassword(auth, email, password);
         }
