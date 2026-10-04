@@ -31,12 +31,11 @@ let tournamentsData = [];
 let currentSelectedMatch = null;
 let activeAuthMode = 'login'; // 'login' or 'signup'
 
-// --- HELPER FUNCTION: DATE/TIME FORMATTER (FIXED) ---
+// --- HELPER FUNCTION: DATE/TIME FORMATTER ---
 function formatMatchTime(timeVal) {
     if (!timeVal) return "To Be Announced";
     
     try {
-        // If Firestore Timestamp Object
         if (timeVal && typeof timeVal.toDate === 'function') {
             return timeVal.toDate().toLocaleString('en-IN', {
                 day: '2-digit',
@@ -47,7 +46,6 @@ function formatMatchTime(timeVal) {
             });
         }
         
-        // If JS Date string or epoch number
         const dateObj = new Date(timeVal);
         if (!isNaN(dateObj.getTime())) {
             return dateObj.toLocaleString('en-IN', {
@@ -65,6 +63,35 @@ function formatMatchTime(timeVal) {
     return String(timeVal);
 }
 
+// --- SHAREABLE LINK UTILITIES ---
+window.copyShareLink = function(matchId, event) {
+    if (event) event.stopPropagation();
+    const shareUrl = `${window.location.origin}${window.location.pathname}#match?id=${matchId}`;
+    
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            alert("Match link copied to clipboard!");
+        }).catch(err => {
+            prompt("Copy this match link:", shareUrl);
+        });
+    } else {
+        prompt("Copy this match link:", shareUrl);
+    }
+};
+
+function handleUrlHashMatch() {
+    const hash = window.location.hash;
+    if (hash && hash.includes("#match?id=")) {
+        const matchId = hash.split("#match?id=")[1];
+        if (matchId && tournamentsData.length > 0) {
+            const foundMatch = tournamentsData.find(t => t.id === matchId);
+            if (foundMatch) {
+                openMatchDetails(matchId);
+            }
+        }
+    }
+}
+
 // --- MODAL UTILITIES ---
 window.openModal = function(modalId) {
     const modal = document.getElementById(modalId);
@@ -74,6 +101,9 @@ window.openModal = function(modalId) {
 window.closeModal = function(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.classList.add("hidden");
+    if (modalId === 'matchModal' && window.location.hash.includes("#match?id=")) {
+        history.pushState("", document.title, window.location.pathname + window.location.search);
+    }
 };
 
 // --- TAB SWITCHER ---
@@ -151,7 +181,6 @@ onAuthStateChanged(auth, async (user) => {
                 userData = snap.data();
                 updateUIWithUserData();
             } else {
-                // Initial Profile Creation
                 const newUserData = {
                     uid: user.uid,
                     name: user.displayName || "Gamer",
@@ -288,7 +317,6 @@ function listenTournaments() {
             tournamentsData.push({ id: docSnap.id, ...docSnap.data() });
         });
         
-        // Local sorting by createdAt if present
         tournamentsData.sort((a, b) => {
             const timeA = a.createdAt?.seconds || 0;
             const timeB = b.createdAt?.seconds || 0;
@@ -296,6 +324,7 @@ function listenTournaments() {
         });
 
         renderTournamentsGrid(tournamentsData);
+        handleUrlHashMatch();
     }, (error) => {
         console.error("Error fetching tournaments:", error);
         const grid = document.getElementById("tournamentsGrid");
@@ -333,7 +362,7 @@ document.getElementById("tournamentSearch")?.addEventListener("input", (e) => {
     renderTournamentsGrid(filtered);
 });
 
-// --- FIXED RENDER GRID FUNCTION ---
+// --- RENDER GRID FUNCTION ---
 function renderTournamentsGrid(matches) {
     const grid = document.getElementById("tournamentsGrid");
     if (!grid) return;
@@ -344,13 +373,8 @@ function renderTournamentsGrid(matches) {
     }
 
     grid.innerHTML = matches.map(t => {
-        // Fallbacks for Tournament Name (Admin Panel Safe)
         const title = t.title || t.name || t.tournamentName || t.matchName || "Free Fire Match";
-
-        // Fallbacks for Banner / Thumbnail Photo
         const photo = t.bannerUrl || t.banner || t.thumbnail || t.imageUrl || t.image || t.photoURL || t.qrCodeUrl || "https://via.placeholder.com/400x200?text=Booyah+HUB+Match";
-
-        // Fallbacks for Date & Match Time
         const rawTime = t.matchTime || t.schedule || t.time || t.startTime || t.createdAt;
         const formattedTime = formatMatchTime(rawTime);
 
@@ -367,18 +391,21 @@ function renderTournamentsGrid(matches) {
 
         return `
             <div class="bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden flex flex-col justify-between hover:border-orange-500/40 transition group">
-                <!-- Banner Photo -->
                 <div class="relative h-36 w-full bg-slate-950 overflow-hidden">
                     <img src="${photo}" alt="${title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x200?text=Booyah+HUB+Match';">
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
                     <span class="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/80 backdrop-blur-md text-orange-400 border border-orange-500/30 text-[10px] font-black rounded-md uppercase">${mode} • ${map}</span>
-                    <span class="absolute top-2 right-2 bg-orange-500 text-slate-950 px-2.5 py-0.5 rounded-lg text-xs font-black shadow-md">${entry > 0 ? '₹' + entry : 'FREE'}</span>
+                    <button onclick="copyShareLink('${t.id}', event)" title="Share Match" class="absolute top-2 right-2 bg-slate-950/80 hover:bg-orange-500 hover:text-slate-950 text-orange-400 p-1.5 rounded-lg border border-orange-500/30 transition shadow-md">
+                        <i class="fa-solid fa-share-nodes text-xs"></i>
+                    </button>
                 </div>
 
                 <div class="p-4 space-y-3">
                     <div>
-                        <h3 class="font-bold text-slate-100 text-sm line-clamp-1">${title}</h3>
-                        <!-- Match Time Badge -->
+                        <div class="flex items-center justify-between gap-2">
+                            <h3 class="font-bold text-slate-100 text-sm line-clamp-1">${title}</h3>
+                            <span class="bg-orange-500 text-slate-950 px-2 py-0.5 rounded-lg text-xs font-black shrink-0">${entry > 0 ? '₹' + entry : 'FREE'}</span>
+                        </div>
                         <div class="flex items-center gap-1.5 mt-1 text-[11px] font-semibold text-slate-400">
                             <i class="fa-regular fa-clock text-orange-400"></i>
                             <span>${formattedTime}</span>
@@ -406,23 +433,28 @@ function renderTournamentsGrid(matches) {
                         </div>
                     </div>
 
-                    <button onclick="openMatchDetails('${t.id}')" class="w-full bg-slate-950 hover:bg-orange-500 hover:text-slate-950 text-slate-200 border border-slate-800 font-extrabold py-2.5 rounded-xl transition text-xs active:scale-95">
-                        View Details
-                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="openMatchDetails('${t.id}')" class="flex-1 bg-slate-950 hover:bg-orange-500 hover:text-slate-950 text-slate-200 border border-slate-800 font-extrabold py-2.5 rounded-xl transition text-xs active:scale-95">
+                            View Details
+                        </button>
+                        <button onclick="copyShareLink('${t.id}', event)" class="bg-slate-950 hover:bg-orange-500 hover:text-slate-950 text-slate-300 border border-slate-800 font-extrabold px-3 py-2.5 rounded-xl transition text-xs active:scale-95" title="Copy Shareable Link">
+                            <i class="fa-solid fa-share-nodes"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
     }).join("");
 }
 
-// --- OPEN MATCH DETAILS (FIXED) ---
+// --- OPEN MATCH DETAILS ---
 window.openMatchDetails = function(matchId) {
     currentSelectedMatch = tournamentsData.find(t => t.id === matchId);
     if (!currentSelectedMatch) return;
 
     const t = currentSelectedMatch;
+    window.location.hash = `match?id=${matchId}`;
 
-    // Fallback Field Mapping
     const title = t.title || t.name || t.tournamentName || t.matchName || "Free Fire Match";
     const rawTime = t.matchTime || t.schedule || t.time || t.startTime || t.createdAt;
     const formattedTime = formatMatchTime(rawTime);
@@ -435,7 +467,6 @@ window.openMatchDetails = function(matchId) {
     const roomId = t.roomId || "Will be visible before match";
     const roomPassword = t.roomPassword || "Will be visible before match";
 
-    // Set Modal Grid Details
     const titleEl = document.getElementById("modalMatchTitle");
     const prizeEl = document.getElementById("modalPrizePool");
     const killEl = document.getElementById("modalPerKill");
@@ -446,7 +477,6 @@ window.openMatchDetails = function(matchId) {
     if (killEl) killEl.textContent = `₹${perKill}`;
     if (entryEl) entryEl.textContent = entry > 0 ? `₹${entry}` : "FREE";
 
-    // Dynamic Extra Details Injection
     const extraDetailsContainer = document.getElementById("modalExtraDetails");
     if (extraDetailsContainer) {
         extraDetailsContainer.innerHTML = `
@@ -474,7 +504,11 @@ window.openMatchDetails = function(matchId) {
         `;
     }
 
-    // Slot Visualizer
+    const modalShareBtn = document.getElementById("modalShareMatchBtn");
+    if (modalShareBtn) {
+        modalShareBtn.onclick = (e) => window.copyShareLink(matchId, e);
+    }
+
     const seatGrid = document.getElementById("modalSeatGrid");
     if (seatGrid) {
         seatGrid.innerHTML = "";
@@ -593,7 +627,6 @@ document.getElementById("tournamentRegistrationForm")?.addEventListener("submit"
 
             if (totalBal < entryFee) throw "Insufficient wallet balance! Please add deposit cash.";
 
-            // Wallet Deduct Logic (Deposit First)
             let remainingFee = entryFee;
             if (depBal >= remainingFee) {
                 depBal -= remainingFee;
@@ -603,11 +636,9 @@ document.getElementById("tournamentRegistrationForm")?.addEventListener("submit"
                 winBal -= remainingFee;
             }
 
-            // Update User Wallet & Tournament Slots
             transaction.update(userRef, { depositBalance: depBal, winningsBalance: winBal });
             transaction.update(matchRef, { registeredSlots: registeredSlots + 1 });
 
-            // Create Participant Entry
             const participantRef = doc(collection(db, "tournaments", tId, "participants"));
             transaction.set(participantRef, {
                 userId: currentUser.uid,
@@ -616,7 +647,6 @@ document.getElementById("tournamentRegistrationForm")?.addEventListener("submit"
                 registeredAt: serverTimestamp()
             });
 
-            // Transaction History Log
             const txRef = doc(collection(db, "transactions"));
             transaction.set(txRef, {
                 userId: currentUser.uid,
@@ -761,3 +791,5 @@ function listenLeaderboard() {
     });
 }
 listenLeaderboard();
+
+window.addEventListener("hashchange", handleUrlHashMatch);
