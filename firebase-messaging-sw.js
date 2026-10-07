@@ -1,23 +1,28 @@
 // firebase-messaging-sw.js
-// Service workers cannot import ES modules, so the config is repeated here (public values only).
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
+// Initialize Firebase App in Service Worker
 firebase.initializeApp({
-    apiKey: "AIzaSyBd53nUisAs6ZzxKpG0Z-CMeCpfMPqvFTc",
-    authDomain: "booyah-hub-e041d.firebaseapp.com",
-    projectId: "booyah-hub-e041d",
-    storageBucket: "booyah-hub-e041d.firebasestorage.app",
-    messagingSenderId: "1007690608229",
-    appId: "1:1007690608229:web:7ce6b6d19a6200430ce08c"
+    apiKey: "AIzaSyCDnwGV_rW7BFjivz_QJ7yCPej7ypdI36Y",
+    authDomain: "booyahhub2509.firebaseapp.com",
+    projectId: "booyahhub2509",
+    storageBucket: "booyahhub2509.firebasestorage.app",
+    messagingSenderId: "524409836628",
+    appId: "1:524409836628:web:fa99832124c5d9862949c1"
 });
 
 const messaging = firebase.messaging();
 
+// Background Notification Listener
 messaging.onBackgroundMessage((payload) => {
-    const n = payload.notification || {};
-    self.registration.showNotification(n.title || 'Booyah HUB Alert!', {
-        body: n.body || 'New notification from Booyah HUB',
-        icon: '/favicon.png'
-    });
+    const notificationTitle = payload.notification?.title || 'Booyah HUB Alert!';
+    const notificationOptions = {
+        body: payload.notification?.body || 'New room update available!',
+        icon: '/favicon.png',
+        badge: '/favicon.png',
+        data: payload.data || {}
+    };
+
+    self.registration.showNotification(notificationTitle, notificationOptions);
 });
