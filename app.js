@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
     getFirestore, collection, doc, onSnapshot, runTransaction, 
-    query, orderBy, limit, serverTimestamp, setDoc, getDoc 
+    query, orderBy, limit, serverTimestamp, setDoc 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { 
     getAuth, onAuthStateChanged, signInWithEmailAndPassword, 
@@ -29,7 +29,7 @@ let currentUser = null;
 let userData = null;
 let tournamentsData = [];
 let currentSelectedMatch = null;
-let activeAuthMode = 'login'; // 'login' or 'signup'
+let activeAuthMode = 'login';
 
 // Extract Referrer UID from URL (?ref=USER_UID)
 const urlParams = new URLSearchParams(window.location.search);
@@ -67,7 +67,7 @@ function formatMatchTime(timeVal) {
     return String(timeVal);
 }
 
-// --- SHAREABLE LINK UTILITIES ---
+// --- GLOBAL UTILITIES BOUND TO WINDOW ---
 window.copyShareLink = function(matchId, event) {
     if (event) event.stopPropagation();
     const shareUrl = `${window.location.origin}${window.location.pathname}#match?id=${matchId}`;
@@ -75,7 +75,7 @@ window.copyShareLink = function(matchId, event) {
     if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(shareUrl).then(() => {
             alert("Match link copied to clipboard!");
-        }).catch(err => {
+        }).catch(() => {
             prompt("Copy this match link:", shareUrl);
         });
     } else {
@@ -96,20 +96,6 @@ window.copyReferralLink = function() {
     }
 };
 
-function handleUrlHashMatch() {
-    const hash = window.location.hash;
-    if (hash && hash.includes("#match?id=")) {
-        const matchId = hash.split("#match?id=")[1];
-        if (matchId && tournamentsData.length > 0) {
-            const foundMatch = tournamentsData.find(t => t.id === matchId);
-            if (foundMatch) {
-                openMatchDetails(matchId);
-            }
-        }
-    }
-}
-
-// --- MODAL UTILITIES ---
 window.openModal = function(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.classList.remove("hidden");
@@ -123,7 +109,6 @@ window.closeModal = function(modalId) {
     }
 };
 
-// --- TAB SWITCHER ---
 window.switchTab = function(tabName) {
     const views = ['tournaments', 'wallet', 'leaderboard', 'profile'];
     views.forEach(v => {
@@ -159,7 +144,6 @@ window.switchTab = function(tabName) {
     }
 };
 
-// --- AUTH SYSTEM ---
 window.toggleAuthMode = function(mode) {
     activeAuthMode = mode;
     const nameGroup = document.getElementById("authNameGroup");
@@ -180,7 +164,20 @@ window.toggleAuthMode = function(mode) {
     }
 };
 
-// Listen Auth State
+function handleUrlHashMatch() {
+    const hash = window.location.hash;
+    if (hash && hash.includes("#match?id=")) {
+        const matchId = hash.split("#match?id=")[1];
+        if (matchId && tournamentsData.length > 0) {
+            const foundMatch = tournamentsData.find(t => t.id === matchId);
+            if (foundMatch) {
+                openMatchDetails(matchId);
+            }
+        }
+    }
+}
+
+// --- AUTH STATE MONITOR ---
 onAuthStateChanged(auth, async (user) => {
     currentUser = user;
     const openAuthBtn = document.getElementById("openAuthBtn");
@@ -191,7 +188,6 @@ onAuthStateChanged(auth, async (user) => {
         if (userProfileNav) userProfileNav.classList.remove("hidden");
         closeModal("authModal");
 
-        // Sync Profile Data
         const userRef = doc(db, "users", user.uid);
         onSnapshot(userRef, (snap) => {
             if (snap.exists()) {
@@ -228,7 +224,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// REFERRAL REWARD TRANSACTION (+5 Points & Max 6 Limit)
+// REFERRAL SYSTEM
 async function processReferralReward(referrerId, newUserId) {
     const referralLogRef = doc(db, "referrals", newUserId);
     const referrerRef = doc(db, "users", referrerId);
@@ -244,11 +240,7 @@ async function processReferralReward(referrerId, newUserId) {
             const referrerData = referrerSnap.data();
             const currentCount = referrerData.referralCount || 0;
 
-            // Strict limit of 6 referrals
-            if (currentCount >= 6) {
-                console.log("Referral limit reached for this user (Max 6 allowed).");
-                return;
-            }
+            if (currentCount >= 6) return;
 
             const currentDep = referrerData.depositBalance || 0;
 
@@ -273,13 +265,11 @@ async function processReferralReward(referrerId, newUserId) {
                 createdAt: serverTimestamp()
             });
         });
-        console.log("Referral Bonus Successfully Added!");
     } catch (e) {
         console.error("Referral process error:", e);
     }
 }
 
-// Update UI with User Profile Data
 function updateUIWithUserData() {
     const navWallet = document.getElementById("navWalletBalance");
     const totalBal = document.getElementById("totalBalanceText");
@@ -337,78 +327,230 @@ function updateUIWithUserData() {
     }
 }
 
-// Auth Form Handlers
-document.getElementById("authEmailForm")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = document.getElementById("authEmailInput").value;
-    const password = document.getElementById("authPasswordInput").value;
-    const name = document.getElementById("authNameInput")?.value || "Gamer";
+// --- DOM EVENT BINDINGS ---
+document.addEventListener("DOMContentLoaded", () => {
+    // Auth Form
+    document.getElementById("authEmailForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("authEmailInput").value;
+        const password = document.getElementById("authPasswordInput").value;
+        const name = document.getElementById("authNameInput")?.value || "Gamer";
 
-    try {
-        if (activeAuthMode === 'signup') {
-            const res = await createUserWithEmailAndPassword(auth, email, password);
-            const newUid = res.user.uid;
+        try {
+            if (activeAuthMode === 'signup') {
+                const res = await createUserWithEmailAndPassword(auth, email, password);
+                const newUid = res.user.uid;
 
-            await setDoc(doc(db, "users", newUid), {
-                uid: newUid,
-                name: name,
-                email: email,
-                photoURL: "https://via.placeholder.com/150",
-                depositBalance: 0,
-                winningsBalance: 0,
-                referralCount: 0,
-                referredBy: (referrerUid && referrerUid !== newUid) ? referrerUid : null,
-                ign: "",
-                gameUid: "",
+                await setDoc(doc(db, "users", newUid), {
+                    uid: newUid,
+                    name: name,
+                    email: email,
+                    photoURL: "https://via.placeholder.com/150",
+                    depositBalance: 0,
+                    winningsBalance: 0,
+                    referralCount: 0,
+                    referredBy: (referrerUid && referrerUid !== newUid) ? referrerUid : null,
+                    ign: "",
+                    gameUid: "",
+                    createdAt: serverTimestamp()
+                });
+
+                if (referrerUid && referrerUid !== newUid) {
+                    await processReferralReward(referrerUid, newUid);
+                }
+            } else {
+                await signInWithEmailAndPassword(auth, email, password);
+            }
+            closeModal("authModal");
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+
+    document.getElementById("googleAuthBtn")?.addEventListener("click", async () => {
+        try {
+            await signInWithPopup(auth, googleProvider);
+            closeModal("authModal");
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+
+    document.getElementById("logoutBtn")?.addEventListener("click", () => {
+        signOut(auth);
+    });
+
+    // Profile Form
+    document.getElementById("profileForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!currentUser) return alert("Please login first!");
+
+        const ign = document.getElementById("profileIgn").value;
+        const uid = document.getElementById("profileUid").value;
+        const photoURL = document.getElementById("profilePhotoUrl").value;
+
+        try {
+            const updatePayload = { ign, gameUid: uid };
+            if (photoURL) updatePayload.photoURL = photoURL;
+
+            await setDoc(doc(db, "users", currentUser.uid), updatePayload, { merge: true });
+            alert("Profile details updated successfully!");
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+
+    // Search Box Listener
+    document.getElementById("tournamentSearch")?.addEventListener("input", (e) => {
+        const term = e.target.value.toLowerCase();
+        const filtered = tournamentsData.filter(t => {
+            const nameStr = t.title || t.name || t.tournamentName || t.matchName || "";
+            return nameStr.toLowerCase().includes(term);
+        });
+        renderTournamentsGrid(filtered);
+    });
+
+    // Add Money Form
+    document.getElementById("addMoneyForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!currentUser) return alert("Please login first!");
+
+        const amount = Number(document.getElementById("addAmount").value);
+        const utr = document.getElementById("addUtr").value;
+
+        try {
+            await setDoc(doc(collection(db, "deposit_requests")), {
+                userId: currentUser.uid,
+                userEmail: currentUser.email,
+                amount: amount,
+                utrNumber: utr,
+                status: "PENDING",
                 createdAt: serverTimestamp()
             });
 
-            if (referrerUid && referrerUid !== newUid) {
-                await processReferralReward(referrerUid, newUid);
-            }
-        } else {
-            await signInWithEmailAndPassword(auth, email, password);
+            alert("Deposit request submitted! Admin will verify your UTR shortly.");
+            closeModal("addMoneyModal");
+        } catch (err) {
+            alert(err.message);
         }
-        closeModal("authModal");
-    } catch (err) {
-        alert(err.message);
-    }
+    });
+
+    // Withdraw Form
+    document.getElementById("withdrawForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!currentUser) return alert("Please login first!");
+
+        const amount = Number(document.getElementById("withdrawAmount").value);
+        const method = document.getElementById("withdrawMethod").value;
+        const details = document.getElementById("withdrawDetails").value;
+
+        const winnings = userData?.winningsBalance || 0;
+        if (amount > winnings) return alert("Insufficient winnings cash available for withdrawal!");
+
+        try {
+            await setDoc(doc(collection(db, "withdrawal_requests")), {
+                userId: currentUser.uid,
+                userEmail: currentUser.email,
+                amount: amount,
+                method: method,
+                paymentDetails: { upiId: details },
+                status: "PENDING",
+                createdAt: serverTimestamp()
+            });
+
+            alert("Withdrawal request submitted successfully!");
+            closeModal("withdrawModal");
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+
+    // Tournament Registration Submission
+    document.getElementById("tournamentRegistrationForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!currentUser || !currentSelectedMatch) return;
+
+        const tId = currentSelectedMatch.id;
+        const mode = (currentSelectedMatch.mode || currentSelectedMatch.type || "SOLO").toUpperCase();
+        let playerSlots = 1;
+        if (mode === "DUO") playerSlots = 2;
+        if (mode === "SQUAD") playerSlots = 4;
+
+        const playersList = [];
+        for (let i = 1; i <= playerSlots; i++) {
+            const ign = document.getElementById(`regIgn_${i}`)?.value;
+            const uid = document.getElementById(`regUid_${i}`)?.value;
+            if (!ign || !uid) return alert(`Please enter details for Player ${i}`);
+            playersList.push({ ign, uid });
+        }
+
+        try {
+            await runTransaction(db, async (transaction) => {
+                const userRef = doc(db, "users", currentUser.uid);
+                const matchRef = doc(db, "tournaments", tId);
+
+                const userSnap = await transaction.get(userRef);
+                const matchSnap = await transaction.get(matchRef);
+
+                if (!userSnap.exists()) throw "User profile not found.";
+                if (!matchSnap.exists()) throw "Tournament no longer exists.";
+
+                const uData = userSnap.data();
+                const mData = matchSnap.data();
+
+                const entryFee = Number(mData.entryFee ?? mData.fee ?? mData.entry ?? 0);
+                const totalSlots = Number(mData.totalSlots ?? mData.maxPlayers ?? mData.slots ?? 8);
+                const joinedList = Array.isArray(mData.joinedPlayers) ? mData.joinedPlayers.length : 0;
+                const registeredSlots = Number(mData.registeredSlots ?? mData.joinedSlots ?? joinedList ?? 0);
+
+                if (registeredSlots >= totalSlots) throw "Tournament slots are fully filled!";
+
+                let depBal = uData.depositBalance || 0;
+                let winBal = uData.winningsBalance || 0;
+                let totalBal = depBal + winBal;
+
+                if (totalBal < entryFee) throw "Insufficient wallet balance! Please add deposit cash.";
+
+                let remainingFee = entryFee;
+                if (depBal >= remainingFee) {
+                    depBal -= remainingFee;
+                } else {
+                    remainingFee -= depBal;
+                    depBal = 0;
+                    winBal -= remainingFee;
+                }
+
+                transaction.update(userRef, { depositBalance: depBal, winningsBalance: winBal });
+                transaction.update(matchRef, { registeredSlots: registeredSlots + 1 });
+
+                const participantRef = doc(collection(db, "tournaments", tId, "participants"));
+                transaction.set(participantRef, {
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    players: playersList,
+                    registeredAt: serverTimestamp()
+                });
+
+                const txRef = doc(collection(db, "transactions"));
+                transaction.set(txRef, {
+                    userId: currentUser.uid,
+                    type: "TOURNAMENT_ENTRY",
+                    amount: entryFee,
+                    status: "SUCCESS",
+                    matchTitle: mData.title || mData.name || mData.tournamentName || mData.matchName || "Free Fire Match",
+                    createdAt: serverTimestamp()
+                });
+            });
+
+            alert("Registered Successfully! All the best!");
+            closeModal("registerModal");
+        } catch (err) {
+            alert(typeof err === "string" ? err : err.message);
+        }
+    });
 });
 
-document.getElementById("googleAuthBtn")?.addEventListener("click", async () => {
-    try {
-        await signInWithPopup(auth, googleProvider);
-        closeModal("authModal");
-    } catch (err) {
-        alert(err.message);
-    }
-});
-
-document.getElementById("logoutBtn")?.addEventListener("click", () => {
-    signOut(auth);
-});
-
-// Profile Update Form
-document.getElementById("profileForm")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!currentUser) return alert("Please login first!");
-
-    const ign = document.getElementById("profileIgn").value;
-    const uid = document.getElementById("profileUid").value;
-    const photoURL = document.getElementById("profilePhotoUrl").value;
-
-    try {
-        const updatePayload = { ign, gameUid: uid };
-        if (photoURL) updatePayload.photoURL = photoURL;
-
-        await setDoc(doc(db, "users", currentUser.uid), updatePayload, { merge: true });
-        alert("Profile details updated successfully!");
-    } catch (err) {
-        alert(err.message);
-    }
-});
-
-// --- TOURNAMENTS REALTIME LISTENER & FILTERING ---
+// --- TOURNAMENTS LISTENER ---
 function listenTournaments() {
     const tournamentsRef = collection(db, "tournaments");
     
@@ -454,16 +596,6 @@ window.filterMode = function(mode) {
     }
 };
 
-document.getElementById("tournamentSearch")?.addEventListener("input", (e) => {
-    const term = e.target.value.toLowerCase();
-    const filtered = tournamentsData.filter(t => {
-        const nameStr = t.title || t.name || t.tournamentName || t.matchName || "";
-        return nameStr.toLowerCase().includes(term);
-    });
-    renderTournamentsGrid(filtered);
-});
-
-// --- RENDER GRID FUNCTION ---
 function renderTournamentsGrid(matches) {
     const grid = document.getElementById("tournamentsGrid");
     if (!grid) return;
@@ -548,7 +680,6 @@ function renderTournamentsGrid(matches) {
     }).join("");
 }
 
-// --- OPEN MATCH DETAILS ---
 window.openMatchDetails = function(matchId) {
     currentSelectedMatch = tournamentsData.find(t => t.id === matchId);
     if (!currentSelectedMatch) return;
@@ -641,7 +772,6 @@ window.openMatchDetails = function(matchId) {
     window.openModal("matchModal");
 };
 
-// --- DYNAMIC TOURNAMENT REGISTRATION SYSTEM ---
 function openRegistrationModal() {
     if (!currentUser) {
         window.openModal("authModal");
@@ -682,145 +812,6 @@ function openRegistrationModal() {
     window.openModal("registerModal");
 }
 
-// Registration Form Submission (Transaction Safe)
-document.getElementById("tournamentRegistrationForm")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!currentUser || !currentSelectedMatch) return;
-
-    const tId = currentSelectedMatch.id;
-    const mode = (currentSelectedMatch.mode || currentSelectedMatch.type || "SOLO").toUpperCase();
-    let playerSlots = 1;
-    if (mode === "DUO") playerSlots = 2;
-    if (mode === "SQUAD") playerSlots = 4;
-
-    const playersList = [];
-    for (let i = 1; i <= playerSlots; i++) {
-        const ign = document.getElementById(`regIgn_${i}`)?.value;
-        const uid = document.getElementById(`regUid_${i}`)?.value;
-        if (!ign || !uid) return alert(`Please enter details for Player ${i}`);
-        playersList.push({ ign, uid });
-    }
-
-    try {
-        await runTransaction(db, async (transaction) => {
-            const userRef = doc(db, "users", currentUser.uid);
-            const matchRef = doc(db, "tournaments", tId);
-
-            const userSnap = await transaction.get(userRef);
-            const matchSnap = await transaction.get(matchRef);
-
-            if (!userSnap.exists()) throw "User profile not found.";
-            if (!matchSnap.exists()) throw "Tournament no longer exists.";
-
-            const uData = userSnap.data();
-            const mData = matchSnap.data();
-
-            const entryFee = Number(mData.entryFee ?? mData.fee ?? mData.entry ?? 0);
-            const totalSlots = Number(mData.totalSlots ?? mData.maxPlayers ?? mData.slots ?? 8);
-            const joinedList = Array.isArray(mData.joinedPlayers) ? mData.joinedPlayers.length : 0;
-            const registeredSlots = Number(mData.registeredSlots ?? mData.joinedSlots ?? joinedList ?? 0);
-
-            if (registeredSlots >= totalSlots) throw "Tournament slots are fully filled!";
-
-            let depBal = uData.depositBalance || 0;
-            let winBal = uData.winningsBalance || 0;
-            let totalBal = depBal + winBal;
-
-            if (totalBal < entryFee) throw "Insufficient wallet balance! Please add deposit cash.";
-
-            let remainingFee = entryFee;
-            if (depBal >= remainingFee) {
-                depBal -= remainingFee;
-            } else {
-                remainingFee -= depBal;
-                depBal = 0;
-                winBal -= remainingFee;
-            }
-
-            transaction.update(userRef, { depositBalance: depBal, winningsBalance: winBal });
-            transaction.update(matchRef, { registeredSlots: registeredSlots + 1 });
-
-            const participantRef = doc(collection(db, "tournaments", tId, "participants"));
-            transaction.set(participantRef, {
-                userId: currentUser.uid,
-                userEmail: currentUser.email,
-                players: playersList,
-                registeredAt: serverTimestamp()
-            });
-
-            const txRef = doc(collection(db, "transactions"));
-            transaction.set(txRef, {
-                userId: currentUser.uid,
-                type: "TOURNAMENT_ENTRY",
-                amount: entryFee,
-                status: "SUCCESS",
-                matchTitle: mData.title || mData.name || mData.tournamentName || mData.matchName || "Free Fire Match",
-                createdAt: serverTimestamp()
-            });
-        });
-
-        alert("Registered Successfully! All the best!");
-        closeModal("registerModal");
-    } catch (err) {
-        alert(typeof err === "string" ? err : err.message);
-    }
-});
-
-// --- WALLET DEPOSIT & WITHDRAWAL HANDLERS ---
-document.getElementById("addMoneyForm")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!currentUser) return alert("Please login first!");
-
-    const amount = Number(document.getElementById("addAmount").value);
-    const utr = document.getElementById("addUtr").value;
-
-    try {
-        await setDoc(doc(collection(db, "deposit_requests")), {
-            userId: currentUser.uid,
-            userEmail: currentUser.email,
-            amount: amount,
-            utrNumber: utr,
-            status: "PENDING",
-            createdAt: serverTimestamp()
-        });
-
-        alert("Deposit request submitted! Admin will verify your UTR shortly.");
-        closeModal("addMoneyModal");
-    } catch (err) {
-        alert(err.message);
-    }
-});
-
-document.getElementById("withdrawForm")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!currentUser) return alert("Please login first!");
-
-    const amount = Number(document.getElementById("withdrawAmount").value);
-    const method = document.getElementById("withdrawMethod").value;
-    const details = document.getElementById("withdrawDetails").value;
-
-    const winnings = userData?.winningsBalance || 0;
-    if (amount > winnings) return alert("Insufficient winnings cash available for withdrawal!");
-
-    try {
-        await setDoc(doc(collection(db, "withdrawal_requests")), {
-            userId: currentUser.uid,
-            userEmail: currentUser.email,
-            amount: amount,
-            method: method,
-            paymentDetails: { upiId: details },
-            status: "PENDING",
-            createdAt: serverTimestamp()
-        });
-
-        alert("Withdrawal request submitted successfully!");
-        closeModal("withdrawModal");
-    } catch (err) {
-        alert(err.message);
-    }
-});
-
-// --- TRANSACTION HISTORY & LEADERBOARD LISTENERS ---
 function listenUserTransactions(userId) {
     const q = query(
         collection(db, "transactions"),
