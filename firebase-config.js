@@ -1,11 +1,9 @@
 // firebase-config.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getStorage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
-import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getMessaging } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
-// Tumhare project ki Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCDnwGV_rW7BFjivz_QJ7yCPej7ypdI36Y",
   authDomain: "booyahhub2509.firebaseapp.com",
@@ -15,12 +13,14 @@ const firebaseConfig = {
   appId: "1:524409836628:web:fa99832124c5d9862949c1"
 };
 
-// Firebase App Initialize karo
-export const app = initializeApp(firebaseConfig);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const messaging = getMessaging(app);
 
-// Services export karo
-export const db = getFirestore(app);
-export const storage = getStorage(app);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-export const messaging = getMessaging(app);
+// Web Push Certificate (VAPID Key)
+const VAPID_KEY = "BFIY-KCyHZReYhosXBWX8OeEikGy3keiLrjyxAV7lHqDkbKHrl4ZQX79Zu_gk0iJLFD-AietGq8GfE0ibPrxMws";
+const SUPER_ADMIN_EMAIL = "admin@booyahhub.com"; // Adjust as per your config
+
+export { db, auth, messaging, getToken, onMessage, VAPID_KEY, SUPER_ADMIN_EMAIL };
