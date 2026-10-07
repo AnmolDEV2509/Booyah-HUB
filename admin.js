@@ -3,10 +3,10 @@ import { db, auth } from "./firebase-config.js";
 import {
     collection, doc, onSnapshot, setDoc, deleteDoc, getDoc, getDocs,
     query, where, runTransaction, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import {
     onAuthStateChanged, signInWithEmailAndPassword, signOut
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import {
     esc, money, num, getBalances, isValidEmail, debounce, toast, notifyError, authErrorMessage
 } from "./utils.js";
@@ -50,7 +50,6 @@ window.adminLogin = async () => {
             notifyError(`Access Denied! ${cred.user.email} Admin nahi hai.`);
             await signOut(auth);
         }
-        // Success is handled by onAuthStateChanged listener
     } catch (e) {
         console.error('Login Error:', e);
         notifyError(authErrorMessage(e));
@@ -229,7 +228,6 @@ $('adminUsersWalletList')?.addEventListener('click', async (e) => {
             const before = getBalances(snap.data());
             const after = { dep: depChanged ? newDep : before.dep, win: winChanged ? newWin : before.win };
 
-            // Field fixed to winningsBalance
             tx.update(userRef, { depositBalance: after.dep, winningsBalance: after.win });
             tx.set(doc(collection(db, 'wallet_logs')), {
                 userId: uid,
@@ -346,7 +344,6 @@ function listenWithdrawalRequests() {
                     if (!uSnap.exists()) throw new Error('User nahi mila.');
 
                     const { dep, win } = getBalances(uSnap.data());
-                    // Field fixed to winningsBalance
                     tx.update(userRef, { depositBalance: dep, winningsBalance: money(win + money(r.amount)) });
                     tx.update(reqRef, { status: 'REJECTED', ...reviewer() });
                 });
@@ -418,7 +415,6 @@ function listenDepositRequests() {
                     if (!uSnap.exists()) throw new Error('User nahi mila.');
 
                     const { dep, win } = getBalances(uSnap.data());
-                    // Field fixed to winningsBalance
                     tx.update(userRef, { depositBalance: money(dep + amount), winningsBalance: win });
                     tx.update(reqRef, { status: 'APPROVED', ...reviewer() });
                 });
