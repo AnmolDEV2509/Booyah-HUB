@@ -4,7 +4,7 @@ import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { setupAnnouncements, setupTournaments, setupResults } from "./admin-common.js";
 
-// Hide the page until access is verified (nothing flashes for non-staff users)
+// Hide page until auth verified
 document.documentElement.style.visibility = 'hidden';
 
 let started = false;
@@ -31,8 +31,7 @@ onAuthStateChanged(auth, async (user) => {
     started = true;
     document.documentElement.style.visibility = 'visible';
 
-    // Sub-admins can manage matches, room details, notices and review proofs.
-    // Kick/refund and paying prizes stay with the Super Admin.
+    // Sub-admins management modules
     setupAnnouncements();
     setupTournaments({ canKick: false, canRefund: false });
     setupResults({ canPay: false });
