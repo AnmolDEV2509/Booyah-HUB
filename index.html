@@ -13,6 +13,9 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-24 sm:pb-8 selection:bg-orange-500 selection:text-white">
 
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
     <!-- TOP BAR (HEADER) -->
     <nav class="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3">
         <div class="max-w-7xl mx-auto flex items-center justify-between">
@@ -27,19 +30,19 @@
 
             <!-- WALLET BADGE & AUTH ACTION -->
             <div class="flex items-center gap-2">
-                <button onclick="switchTab('wallet')" class="bg-slate-900 border border-slate-800 hover:border-orange-500/50 px-3 py-1.5 rounded-xl flex items-center gap-2 transition active:scale-95">
+                <button type="button" onclick="switchTab('wallet')" class="bg-slate-900 border border-slate-800 hover:border-orange-500/50 px-3 py-1.5 rounded-xl flex items-center gap-2 transition active:scale-95">
                     <i class="fa-solid fa-wallet text-orange-400 text-xs"></i>
                     <span id="navWalletBalance" class="text-xs font-bold text-slate-200">₹0</span>
                 </button>
 
                 <!-- LOGIN/SIGNUP MAIN BUTTON -->
-                <button id="openAuthBtn" onclick="openModal('authModal')" class="bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-extrabold text-xs px-3.5 py-2 rounded-xl transition shadow-md shadow-orange-500/20 active:scale-95 flex items-center gap-1.5">
+                <button type="button" id="openAuthBtn" onclick="openModal('authModal')" class="bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-extrabold text-xs px-3.5 py-2 rounded-xl transition shadow-md shadow-orange-500/20 active:scale-95 flex items-center gap-1.5">
                     <i class="fa-solid fa-right-to-bracket"></i> Login / Sign Up
                 </button>
 
                 <!-- USER AVATAR (WHEN LOGGED IN) -->
                 <div id="userProfileNav" class="hidden cursor-pointer" onclick="switchTab('profile')">
-                    <img id="userAvatar" src="https://via.placeholder.com/150" class="w-8 h-8 rounded-xl border-2 border-orange-500/50 object-cover">
+                    <img id="userAvatar" src="https://via.placeholder.com/150" alt="User Avatar" class="w-8 h-8 rounded-xl border-2 border-orange-500/50 object-cover">
                 </div>
             </div>
         </div>
@@ -50,16 +53,16 @@
 
         <!-- DESKTOP TOP TABS -->
         <div class="hidden sm:flex items-center gap-2 overflow-x-auto no-scrollbar py-2 mb-4">
-            <button id="tab-tournaments" onclick="switchTab('tournaments')" class="tab-btn active-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
+            <button type="button" id="tab-tournaments" onclick="switchTab('tournaments')" class="tab-btn active-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
                 <i class="fa-solid fa-trophy text-xs"></i> Matches
             </button>
-            <button id="tab-wallet" onclick="switchTab('wallet')" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
+            <button type="button" id="tab-wallet" onclick="switchTab('wallet')" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
                 <i class="fa-solid fa-wallet text-xs"></i> Wallet
             </button>
-            <button id="tab-leaderboard" onclick="switchTab('leaderboard')" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
+            <button type="button" id="tab-leaderboard" onclick="switchTab('leaderboard')" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
                 <i class="fa-solid fa-ranking-star text-xs"></i> Leaderboard
             </button>
-            <button id="tab-profile" onclick="switchTab('profile')" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
+            <button type="button" id="tab-profile" onclick="switchTab('profile')" class="tab-btn inactive-tab px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 whitespace-nowrap">
                 <i class="fa-solid fa-user text-xs"></i> Profile
             </button>
         </div>
@@ -72,10 +75,10 @@
                     <input type="text" id="tournamentSearch" placeholder="Search matches..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-orange-500/50">
                 </div>
                 <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
-                    <button onclick="filterMode('ALL')" class="filter-chip active-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-orange-500 text-slate-950 border-orange-500">ALL</button>
-                    <button onclick="filterMode('SOLO')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-slate-900 text-slate-400 border-slate-800">SOLO</button>
-                    <button onclick="filterMode('DUO')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-slate-900 text-slate-400 border-slate-800">DUO</button>
-                    <button onclick="filterMode('SQUAD')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-slate-900 text-slate-400 border-slate-800">SQUAD</button>
+                    <button type="button" onclick="filterMode('ALL')" class="filter-chip active-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-orange-500 text-slate-950 border-orange-500">ALL</button>
+                    <button type="button" onclick="filterMode('SOLO')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-slate-900 text-slate-400 border-slate-800">SOLO</button>
+                    <button type="button" onclick="filterMode('DUO')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-slate-900 text-slate-400 border-slate-800">DUO</button>
+                    <button type="button" onclick="filterMode('SQUAD')" class="filter-chip inactive-chip px-3.5 py-2 rounded-lg text-xs font-bold border transition bg-slate-900 text-slate-400 border-slate-800">SQUAD</button>
                 </div>
             </div>
 
@@ -102,10 +105,10 @@
             </div>
 
             <div class="grid grid-cols-2 gap-3">
-                <button onclick="openModal('addMoneyModal')" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 active:scale-95">
+                <button type="button" onclick="openModal('addMoneyModal')" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 active:scale-95">
                     <i class="fa-solid fa-plus"></i> Add Money
                 </button>
-                <button onclick="openModal('withdrawModal')" class="bg-slate-900 hover:bg-slate-800 text-slate-100 font-extrabold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 border border-slate-800 active:scale-95">
+                <button type="button" onclick="openModal('withdrawModal')" class="bg-slate-900 hover:bg-slate-800 text-slate-100 font-extrabold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 border border-slate-800 active:scale-95">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i> Withdraw
                 </button>
             </div>
@@ -144,14 +147,14 @@
         <section id="view-profile" class="hidden space-y-4">
             <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                    <img id="profileCardAvatar" src="https://via.placeholder.com/150" class="w-14 h-14 rounded-2xl border-2 border-orange-500/50 object-cover shadow-md">
+                    <img id="profileCardAvatar" src="https://via.placeholder.com/150" alt="Profile Avatar" class="w-14 h-14 rounded-2xl border-2 border-orange-500/50 object-cover shadow-md">
                     <div class="overflow-hidden">
                         <h2 id="profileCardName" class="font-bold text-slate-100 text-sm truncate">Gamer</h2>
                         <p id="profileCardEmail" class="text-xs text-slate-400 truncate">gamer@gmail.com</p>
                         <span class="inline-block mt-1 px-2 py-0.5 bg-orange-500/10 text-orange-400 text-[10px] font-extrabold rounded-md border border-orange-500/20">PLAYER</span>
                     </div>
                 </div>
-                <button id="logoutBtn" class="bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-400 p-2.5 rounded-xl transition text-xs flex items-center gap-2 active:scale-95">
+                <button type="button" id="logoutBtn" class="bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-400 p-2.5 rounded-xl transition text-xs flex items-center gap-2 active:scale-95">
                     <i class="fa-solid fa-right-from-bracket"></i>
                     <span class="hidden sm:inline font-bold">Logout</span>
                 </button>
@@ -171,7 +174,7 @@
                 
                 <div class="flex items-center gap-2">
                     <input type="text" id="referralLinkInput" readonly value="Login to see your link" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-300 focus:outline-none select-all">
-                    <button onclick="copyReferralLink()" class="bg-orange-500 hover:bg-orange-600 text-slate-950 font-black px-4 py-2.5 rounded-xl transition text-xs whitespace-nowrap active:scale-95">
+                    <button type="button" onclick="copyReferralLink()" class="bg-orange-500 hover:bg-orange-600 text-slate-950 font-black px-4 py-2.5 rounded-xl transition text-xs whitespace-nowrap active:scale-95">
                         <i class="fa-solid fa-copy"></i> Copy
                     </button>
                 </div>
@@ -183,18 +186,18 @@
                 </h3>
                 
                 <div class="space-y-1.5">
-                    <label class="text-[11px] text-slate-400 font-semibold">In-Game Name (IGN)</label>
-                    <input type="text" id="profileIgn" placeholder="e.g. OP_GAMER_99" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                    <label for="profileIgn" class="text-[11px] text-slate-400 font-semibold">In-Game Name (IGN)</label>
+                    <input type="text" id="profileIgn" name="profileIgn" placeholder="e.g. OP_GAMER_99" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
                 </div>
 
                 <div class="space-y-1.5">
-                    <label class="text-[11px] text-slate-400 font-semibold">Free Fire Character UID</label>
-                    <input type="text" id="profileUid" placeholder="e.g. 123456789" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                    <label for="profileUid" class="text-[11px] text-slate-400 font-semibold">Free Fire Character UID</label>
+                    <input type="text" id="profileUid" name="profileUid" placeholder="e.g. 123456789" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
                 </div>
 
                 <div class="space-y-1.5">
-                    <label class="text-[11px] text-slate-400 font-semibold">Custom Profile Avatar URL (Optional)</label>
-                    <input type="url" id="profilePhotoUrl" placeholder="https://example.com/avatar.png" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                    <label for="profilePhotoUrl" class="text-[11px] text-slate-400 font-semibold">Custom Profile Avatar URL (Optional)</label>
+                    <input type="url" id="profilePhotoUrl" name="profilePhotoUrl" placeholder="https://example.com/avatar.png" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
                 </div>
 
                 <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-slate-950 font-extrabold py-3 rounded-xl transition text-xs shadow-lg shadow-orange-500/20 active:scale-95">
@@ -208,19 +211,19 @@
     <!-- FIXED MOBILE BOTTOM NAVBAR -->
     <nav class="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800/80 px-2 py-2">
         <div class="grid grid-cols-4 gap-1 text-center">
-            <button id="bottom-nav-tournaments" onclick="switchTab('tournaments')" class="mobile-nav-btn active-mobile-tab py-1.5 rounded-xl flex flex-col items-center justify-center gap-1 transition">
+            <button type="button" id="bottom-nav-tournaments" onclick="switchTab('tournaments')" class="mobile-nav-btn active-mobile-tab py-1.5 rounded-xl flex flex-col items-center justify-center gap-1 transition">
                 <i class="fa-solid fa-trophy text-base"></i>
                 <span class="text-[10px] font-bold">Matches</span>
             </button>
-            <button id="bottom-nav-wallet" onclick="switchTab('wallet')" class="mobile-nav-btn inactive-mobile-tab py-1.5 rounded-xl flex flex-col items-center justify-center gap-1 transition">
+            <button type="button" id="bottom-nav-wallet" onclick="switchTab('wallet')" class="mobile-nav-btn inactive-mobile-tab py-1.5 rounded-xl flex flex-col items-center justify-center gap-1 transition">
                 <i class="fa-solid fa-wallet text-base"></i>
                 <span class="text-[10px] font-bold">Wallet</span>
             </button>
-            <button id="bottom-nav-leaderboard" onclick="switchTab('leaderboard')" class="mobile-nav-btn inactive-mobile-tab py-1.5 rounded-xl flex flex-col items-center justify-center gap-1 transition">
+            <button type="button" id="bottom-nav-leaderboard" onclick="switchTab('leaderboard')" class="mobile-nav-btn inactive-mobile-tab py-1.5 rounded-xl flex flex-col items-center justify-center gap-1 transition">
                 <i class="fa-solid fa-ranking-star text-base"></i>
                 <span class="text-[10px] font-bold">Rank</span>
             </button>
-            <button id="bottom-nav-profile" onclick="switchTab('profile')" class="mobile-nav-btn inactive-mobile-tab py-1.5 rounded-xl flex flex-col items-center justify-center gap-1 transition">
+            <button type="button" id="bottom-nav-profile" onclick="switchTab('profile')" class="mobile-nav-btn inactive-mobile-tab py-1.5 rounded-xl flex flex-col items-center justify-center gap-1 transition">
                 <i class="fa-solid fa-user text-base"></i>
                 <span class="text-[10px] font-bold">Profile</span>
             </button>
@@ -234,28 +237,28 @@
                 <h3 id="authModalTitle" class="font-extrabold text-slate-100 text-base flex items-center gap-2">
                     <i class="fa-solid fa-user-lock text-orange-500"></i> Account Access
                 </h3>
-                <button onclick="closeModal('authModal')" class="text-slate-400 hover:text-slate-200 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <button type="button" onclick="closeModal('authModal')" class="text-slate-400 hover:text-slate-200 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
 
             <div class="grid grid-cols-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-bold">
-                <button id="toggleLoginTabBtn" onclick="toggleAuthMode('login')" class="py-2 rounded-lg bg-orange-500 text-slate-950 transition">Login</button>
-                <button id="toggleSignupTabBtn" onclick="toggleAuthMode('signup')" class="py-2 rounded-lg text-slate-400 transition">Sign Up</button>
+                <button type="button" id="toggleLoginTabBtn" onclick="toggleAuthMode('login')" class="py-2 rounded-lg bg-orange-500 text-slate-950 transition">Login</button>
+                <button type="button" id="toggleSignupTabBtn" onclick="toggleAuthMode('signup')" class="py-2 rounded-lg text-slate-400 transition">Sign Up</button>
             </div>
 
             <form id="authEmailForm" class="space-y-3.5">
                 <div id="authNameGroup" class="hidden space-y-1">
-                    <label class="text-[11px] text-slate-400 font-semibold">Full Name</label>
-                    <input type="text" id="authNameInput" placeholder="John Doe" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                    <label for="authNameInput" class="text-[11px] text-slate-400 font-semibold">Full Name</label>
+                    <input type="text" id="authNameInput" name="authNameInput" placeholder="John Doe" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
                 </div>
 
                 <div class="space-y-1">
-                    <label class="text-[11px] text-slate-400 font-semibold">Email Address</label>
-                    <input type="email" id="authEmailInput" required placeholder="gamer@example.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                    <label for="authEmailInput" class="text-[11px] text-slate-400 font-semibold">Email Address</label>
+                    <input type="email" id="authEmailInput" name="authEmailInput" required placeholder="gamer@example.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
                 </div>
 
                 <div class="space-y-1">
-                    <label class="text-[11px] text-slate-400 font-semibold">Password</label>
-                    <input type="password" id="authPasswordInput" required minlength="6" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                    <label for="authPasswordInput" class="text-[11px] text-slate-400 font-semibold">Password</label>
+                    <input type="password" id="authPasswordInput" name="authPasswordInput" required minlength="6" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
                 </div>
 
                 <button type="submit" id="authSubmitBtn" class="w-full bg-orange-500 hover:bg-orange-600 text-slate-950 font-black py-3 rounded-xl transition text-xs shadow-lg shadow-orange-500/20 active:scale-95">
@@ -269,7 +272,7 @@
                 <div class="flex-grow border-t border-slate-800"></div>
             </div>
 
-            <button id="googleAuthBtn" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-2 active:scale-95">
+            <button type="button" id="googleAuthBtn" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-200 font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-2 active:scale-95">
                 <i class="fa-brands fa-google text-orange-500"></i> Continue with Google
             </button>
         </div>
@@ -281,10 +284,10 @@
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
                 <h3 id="modalMatchTitle" class="font-bold text-slate-100 text-sm">Match Details</h3>
                 <div class="flex items-center gap-2">
-                    <button id="modalShareMatchBtn" class="text-slate-400 hover:text-orange-400 p-1 transition" title="Share Match Link">
+                    <button type="button" id="modalShareMatchBtn" class="text-slate-400 hover:text-orange-400 p-1 transition" title="Share Match Link">
                         <i class="fa-solid fa-share-nodes text-base"></i>
                     </button>
-                    <button onclick="closeModal('matchModal')" class="text-slate-400 hover:text-slate-200 p-1">
+                    <button type="button" onclick="closeModal('matchModal')" class="text-slate-400 hover:text-slate-200 p-1">
                         <i class="fa-solid fa-xmark text-lg"></i>
                     </button>
                 </div>
@@ -312,7 +315,7 @@
                 <div id="modalSeatGrid" class="grid grid-cols-8 gap-1.5 bg-slate-950 p-3 rounded-xl border border-slate-800 max-h-44 overflow-y-auto"></div>
             </div>
 
-            <button id="btnProceedRegister" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-black py-3 rounded-xl transition text-xs shadow-lg shadow-orange-500/20 active:scale-95">
+            <button type="button" id="btnProceedRegister" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-black py-3 rounded-xl transition text-xs shadow-lg shadow-orange-500/20 active:scale-95">
                 Join Match Now
             </button>
         </div>
@@ -355,13 +358,13 @@
             </div>
 
             <div class="space-y-1.5">
-                <label class="text-[11px] text-slate-400 font-semibold">Amount (₹)</label>
-                <input type="number" id="addAmount" required min="10" placeholder="100" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                <label for="addAmount" class="text-[11px] text-slate-400 font-semibold">Amount (₹)</label>
+                <input type="number" id="addAmount" name="addAmount" required min="10" placeholder="100" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
             </div>
 
             <div class="space-y-1.5">
-                <label class="text-[11px] text-slate-400 font-semibold">UTR / Transaction Ref No.</label>
-                <input type="text" id="addUtr" required placeholder="12-digit UTR Number" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                <label for="addUtr" class="text-[11px] text-slate-400 font-semibold">UTR / Transaction Ref No.</label>
+                <input type="text" id="addUtr" name="addUtr" required placeholder="12-digit UTR Number" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
             </div>
 
             <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold py-3 rounded-xl transition text-xs shadow-lg shadow-emerald-500/20 active:scale-95">
@@ -379,21 +382,21 @@
             </div>
 
             <div class="space-y-1.5">
-                <label class="text-[11px] text-slate-400 font-semibold">Amount (₹)</label>
-                <input type="number" id="withdrawAmount" required min="50" placeholder="50" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                <label for="withdrawAmount" class="text-[11px] text-slate-400 font-semibold">Amount (₹)</label>
+                <input type="number" id="withdrawAmount" name="withdrawAmount" required min="50" placeholder="50" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
             </div>
 
             <div class="space-y-1.5">
-                <label class="text-[11px] text-slate-400 font-semibold">Method</label>
-                <select id="withdrawMethod" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                <label for="withdrawMethod" class="text-[11px] text-slate-400 font-semibold">Method</label>
+                <select id="withdrawMethod" name="withdrawMethod" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
                     <option value="UPI">UPI ID</option>
                     <option value="PAYTM">Paytm Number</option>
                 </select>
             </div>
 
             <div class="space-y-1.5">
-                <label class="text-[11px] text-slate-400 font-semibold">UPI ID / Phone Number</label>
-                <input type="text" id="withdrawDetails" required placeholder="e.g. 9876543210@upi" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
+                <label for="withdrawDetails" class="text-[11px] text-slate-400 font-semibold">UPI ID / Phone Number</label>
+                <input type="text" id="withdrawDetails" name="withdrawDetails" required placeholder="e.g. 9876543210@upi" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-orange-500">
             </div>
 
             <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-slate-950 font-extrabold py-3 rounded-xl transition text-xs shadow-lg shadow-orange-500/20 active:scale-95">
