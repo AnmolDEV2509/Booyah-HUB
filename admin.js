@@ -11,6 +11,7 @@ import {
     esc, money, num, getBalances, isValidEmail, debounce, toast, notifyError, authErrorMessage
 } from "./utils.js";
 import { setupAnnouncements, setupTournaments, setupResults } from "./admin-common.js";
+import { initOneSignal } from "./fcm-helper.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -88,6 +89,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 function startPanels() {
+    initOneSignal();
     loadPaymentSettings();
     listenAdmins();
     loadUsers();
