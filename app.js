@@ -24,6 +24,19 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
+// --- ONESIGNAL INITIALIZATION ---
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+OneSignalDeferred.push(async function(OneSignal) {
+  await OneSignal.init({
+    appId: "YOUR_ONESIGNAL_APP_ID", // ⚠️ Apni OneSignal App ID yahan dalein
+    safari_web_id: "YOUR_SAFARI_WEB_ID", // Optional
+    notifyButton: {
+      enable: true,
+    },
+    allowLocalhostAsSecureOrigin: true,
+  });
+});
+
 // Global Application State
 let currentUser = null;
 let userData = null;
@@ -188,6 +201,11 @@ onAuthStateChanged(auth, async (user) => {
         if (userProfileNav) userProfileNav.classList.remove("hidden");
         closeModal("authModal");
 
+        // Set User ID in OneSignal for targeted push notifications
+        OneSignalDeferred.push(function(OneSignal) {
+            OneSignal.login(user.uid);
+        });
+
         const userRef = doc(db, "users", user.uid);
         onSnapshot(userRef, (snap) => {
             if (snap.exists()) {
@@ -220,6 +238,12 @@ onAuthStateChanged(auth, async (user) => {
         userData = null;
         if (openAuthBtn) openAuthBtn.classList.remove("hidden");
         if (userProfileNav) userProfileNav.classList.add("hidden");
+        
+        // Logout from OneSignal
+        OneSignalDeferred.push(function(OneSignal) {
+            OneSignal.logout();
+        });
+
         updateUIWithUserData();
     }
 });
