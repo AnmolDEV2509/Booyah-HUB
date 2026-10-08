@@ -3,6 +3,7 @@ import { db, auth, SUPER_ADMIN_EMAIL } from "./firebase-config.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { setupAnnouncements, setupTournaments, setupResults } from "./admin-common.js";
+import { initOneSignal } from "./fcm-helper.js";
 
 // Hide page until auth verified
 document.documentElement.style.visibility = 'hidden';
@@ -30,6 +31,9 @@ onAuthStateChanged(auth, async (user) => {
     if (started) return;
     started = true;
     document.documentElement.style.visibility = 'visible';
+
+    // OneSignal Push SDK Initialization
+    initOneSignal();
 
     // Sub-admins management modules
     setupAnnouncements();
