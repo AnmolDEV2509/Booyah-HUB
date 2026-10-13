@@ -554,8 +554,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 const entryFee = Number(mData.entryFee ?? mData.fee ?? mData.entry ?? 0);
                 const totalSlots = Number(mData.totalSlots ?? mData.maxPlayers ?? mData.slots ?? 8);
-                const joinedList = Array.isArray(mData.joinedPlayers) ? mData.joinedPlayers.length : 0;
-                const registeredSlots = Number(mData.registeredSlots ?? mData.joinedSlots ?? joinedList ?? 0);
+                
+                // Joined players array properly handled here[span_2](start_span)[span_2](end_span)
+                let joinedList = Array.isArray(mData.joinedPlayers) ? mData.joinedPlayers : [];
+                const registeredSlots = Number(mData.registeredSlots ?? mData.joinedSlots ?? joinedList.length ?? 0);
 
                 if (registeredSlots >= totalSlots) throw "Tournament slots are fully filled!";
 
@@ -574,8 +576,21 @@ document.addEventListener("DOMContentLoaded", () => {
                     winBal -= remainingFee;
                 }
 
+                // Push new player registration into array
+                joinedList.push({
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    players: playersList,
+                    registeredAt: serverTimestamp()
+                });
+
                 transaction.update(userRef, { depositBalance: depBal, winningsBalance: winBal });
-                transaction.update(matchRef, { registeredSlots: registeredSlots + 1 });
+                
+                // Update registeredSlots count and joinedPlayers array[span_3](start_span)[span_3](end_span)
+                transaction.update(matchRef, { 
+                    registeredSlots: joinedList.length,
+                    joinedPlayers: joinedList 
+                });
 
                 const participantRef = doc(collection(db, "tournaments", tId, "participants"));
                 transaction.set(participantRef, {
