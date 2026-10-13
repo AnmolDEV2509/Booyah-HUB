@@ -28,8 +28,8 @@ const googleProvider = new GoogleAuthProvider();
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 OneSignalDeferred.push(async function(OneSignal) {
   await OneSignal.init({
-    appId: "YOUR_ONESIGNAL_APP_ID", // ⚠️ Apni OneSignal App ID yahan dalein
-    safari_web_id: "YOUR_SAFARI_WEB_ID", // Optional
+    appId: "YOUR_ONESIGNAL_APP_ID",
+    safari_web_id: "YOUR_SAFARI_WEB_ID",
     notifyButton: {
       enable: true,
     },
@@ -190,6 +190,35 @@ function handleUrlHashMatch() {
     }
 }
 
+// --- LISTEN ADMIN PAYMENT SETTINGS (LIVE UPI & QR) ---
+function listenPaymentSettings() {
+    const paymentInfoRef = doc(db, "system_settings", "payment_info");
+    onSnapshot(paymentInfoRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            const upiId = data.upiId || "No UPI Set";
+            const qrUrl = data.qrCodeUrl || "";
+
+            // Update UPI ID text
+            const upiEl = document.getElementById("displayAdminUpi");
+            if (upiEl) upiEl.textContent = upiId;
+
+            // Update QR Code image
+            const qrEl = document.getElementById("displayAdminQr");
+            if (qrEl) {
+                if (qrUrl) {
+                    qrEl.src = qrUrl;
+                    qrEl.classList.remove("hidden");
+                } else {
+                    qrEl.classList.add("hidden");
+                }
+            }
+        }
+    }, (error) => {
+        console.error("Error fetching payment settings:", error);
+    });
+}
+
 // --- AUTH STATE MONITOR ---
 onAuthStateChanged(auth, async (user) => {
     currentUser = user;
@@ -201,7 +230,6 @@ onAuthStateChanged(auth, async (user) => {
         if (userProfileNav) userProfileNav.classList.remove("hidden");
         closeModal("authModal");
 
-        // Set User ID in OneSignal for targeted push notifications
         OneSignalDeferred.push(function(OneSignal) {
             OneSignal.login(user.uid);
         });
@@ -239,7 +267,6 @@ onAuthStateChanged(auth, async (user) => {
         if (openAuthBtn) openAuthBtn.classList.remove("hidden");
         if (userProfileNav) userProfileNav.classList.add("hidden");
         
-        // Logout from OneSignal
         OneSignalDeferred.push(function(OneSignal) {
             OneSignal.logout();
         });
@@ -353,6 +380,9 @@ function updateUIWithUserData() {
 
 // --- DOM EVENT BINDINGS ---
 document.addEventListener("DOMContentLoaded", () => {
+    // Initialize Admin Payment Settings Listener
+    listenPaymentSettings();
+
     // Auth Form
     document.getElementById("authEmailForm")?.addEventListener("submit", async (e) => {
         e.preventDefault();
