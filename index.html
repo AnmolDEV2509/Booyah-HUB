@@ -342,7 +342,7 @@
         </form>
     </div>
 
-    <!-- MODAL 3: ADD MONEY -->
+    <!-- MODAL 3: ADD MONEY (DYNAMIC ADMIN PAYMENT SETTINGS) -->
     <div id="addMoneyModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex modal-wrapper justify-center p-0 sm:p-4">
         <form id="addMoneyForm" class="bg-slate-900 border border-slate-800 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -350,10 +350,19 @@
                 <button type="button" onclick="closeModal('addMoneyModal')" class="text-slate-400 hover:text-slate-200 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
 
-            <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-center space-y-1.5">
-                <span class="text-[11px] text-slate-400 block font-bold">Pay via UPI ID</span>
-                <div class="font-mono text-xs font-black text-orange-400 bg-slate-900 py-2 rounded-xl border border-slate-800 select-all">
-                    booyahhub@upi
+            <!-- ADMIN PAYMENT DETAILS (DYNAMIC) -->
+            <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-center space-y-2.5">
+                <span class="text-[11px] text-slate-400 block font-bold">Scan QR or Pay to Admin UPI</span>
+                
+                <!-- Admin QR Code Container -->
+                <div id="adminQrContainer" class="flex justify-center">
+                    <img id="displayAdminQr" src="https://via.placeholder.com/150" alt="Admin QR Code" class="w-32 h-32 object-contain rounded-xl border border-slate-800 bg-white p-1 hidden">
+                </div>
+
+                <!-- Admin UPI ID Box -->
+                <div class="flex items-center justify-between bg-slate-900 px-3 py-2 rounded-xl border border-slate-800">
+                    <span id="displayAdminUpi" class="font-mono text-xs font-black text-orange-400 select-all">Loading UPI...</span>
+                    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('displayAdminUpi').textContent); alert('UPI ID Copied!');" class="bg-orange-500 hover:bg-orange-600 text-slate-950 px-2 py-1 rounded-lg text-[10px] font-black transition">Copy</button>
                 </div>
             </div>
 
@@ -367,7 +376,7 @@
                 <input type="text" id="addUtr" name="addUtr" required placeholder="12-digit UTR Number" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
             </div>
 
-            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold py-3 rounded-xl transition text-xs shadow-lg shadow-emerald-500/20 active:scale-95">
+            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold py-3 rounded-xl transition text-xs shadow-lg shadow-emerald-500/10 active:scale-95">
                 Submit Request
             </button>
         </form>
